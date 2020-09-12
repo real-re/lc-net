@@ -1,0 +1,286 @@
+# Core data
+[Core]
+name = Itachi
+hp = 5000
+width = 40
+height = 80
+
+# Following are actions
+[Idle]
+frames = [
+	Itachi_Idle_01
+	Itachi_Idle_02
+	Itachi_Idle_03
+	Itachi_Idle_04
+	Itachi_Idle_05
+	Itachi_Idle_06
+	Itachi_Idle_07
+]
+
+[Walk]
+frames = [
+	Itachi_Walk_01
+	Itachi_Walk_02
+	Itachi_Walk_03
+	Itachi_Walk_04
+	Itachi_Walk_05
+	Itachi_Walk_06
+]
+
+[Hurt]
+frames = [
+	setMove = 32
+	Itachi_Hurt_01
+	Itachi_Hurt_02
+	Itachi_Hurt_03
+	setSound = itachi_hurt
+]
+
+[AirHurt]
+frames = [
+	Itachi_AirHurt_01
+]
+
+[KnockDown]
+frames = [
+	Itachi_KnockDown_01
+	Itachi_KnockDown_02
+	setDelay = 10
+	Itachi_KnockDown_03
+	setDelay = 60
+	Itachi_KnockDown_04
+	Itachi_KnockDown_05
+	Itachi_KnockDown_06
+]
+
+[Float]
+frames = [
+	Itachi_Float_01
+	setDelay = 10
+	Itachi_Float_02
+	setDelay = 10
+	Itachi_Float_03
+]
+
+[Dead]
+frames = [
+	Itachi_KnockDown_01
+	Itachi_KnockDown_02
+	Itachi_KnockDown_03
+	setSound = itachi_dead
+]
+
+[Attack]
+attackType = nAttack
+attackPoints = 60
+attackRangeX = 16
+attackRangeY = 48
+frames = [
+	Itachi_Attack_01
+	Itachi_Attack_02
+	Itachi_Attack_03
+	setSound = Audio/Effect/kuwu
+	setAttackBox = bl_hit
+	Itachi_Attack_04
+	Itachi_Attack_05
+	Itachi_Attack_06
+	setMove = 8
+	Itachi_Attack_07
+	setSound = Audio/Effect/combo2
+	setAttackBox = n_hit
+	Itachi_Attack_08
+	Itachi_Attack_09
+	Itachi_Attack_10
+	Itachi_Attack_11
+	Itachi_Attack_12
+	Itachi_Attack_13
+	Itachi_Attack_14
+	setMove = 16
+	Itachi_Attack_15
+	setSound = itachi_combo
+	setSound = Audio/Effect/combo3
+	Itachi_Attack_16
+	setAttackBox = l_hit
+	Itachi_Attack_17
+]
+
+[skill01]
+attackType = aAttack
+attackPoints = 660
+attackRangeX = 32
+attackRangeY = 48
+coldDown = 10
+combatPoint = 1320
+frames = [
+	setSound = itachi_skill2
+	Itachi_Skill02_02
+	Itachi_Skill02_03
+	setSound = Audio/Effect/kara
+	Itachi_Skill02_05
+	setSound = Audio/Effect/kara
+	setAttackBox = a_hit
+	setDmgSound = Audio/Effect/stick_damage
+	setChargeB = 192
+	Itachi_Skill02_06
+	setDmgSound = Audio/Effect/stick_damage
+	setAttackBox = a_hit
+	Itachi_Skill02_02
+]
+
+[skill02]
+attackType = cAttack
+attackPoints = 360
+attackRangeX = 0
+attackRangeY = 48
+coldDown = 15
+combatPoint = 1800
+frames = [
+	setSound = itachi_skill1
+	Itachi_Skill01_004
+	setDelay = 10
+	setSound = itachi_skill1_1
+	Itachi_Skill01_005
+	setSound = Audio/Effect/goukakyu
+	Itachi_Skill01_006
+	setAttackBox = a_hit
+	Itachi_Skill01_007
+	setAttackBox = a_hit
+	Itachi_Skill01_008
+	setAttackBox = a_hit
+	Itachi_Skill01_009
+	setAttackBox = a_hit
+	Itachi_Skill01_010
+	setAttackBox = a_hit
+]
+
+[skill03]
+attackType = Summon
+coldDown = 25
+combatPoint = 4600
+frames = [
+	setSound = itachi_skill3
+	Itachi_Skill03_01
+	setEffect = sharingan
+	setDelay = 10
+	Itachi_Skill03_02
+	setDelay = 10
+	setSound = itachi_skill3_1
+	setTrap = Amaterasu
+	setDelay = 10
+	setSound = Audio/Effect/srg
+]
+
+[skill04]
+attackType = Summon
+attackPoints = 250
+attackRangeX = 256
+attackRangeY = 128
+coldDown = 1
+combatPoint = 3000
+frames = [
+	setSound = Audio/Effect/ougis
+	Itachi_Skill04_001
+	Itachi_Skill04_002
+	setSound = itachi_skill4
+	setEffect = sharingan
+	setDelay = 20
+	setSkill = Tsukuyomi
+]
+
+[skill05]
+attackType = cBuff
+attackRangeY = 15
+coldDown = 1
+combatPoint = 10000
+frames = [
+	setSound = Audio/Effect/ougis
+	Itachi_Skill05_03
+	setCommand = setInvincible
+	Itachi_Skill05_04
+	Itachi_Skill05_05
+	Itachi_Skill05_06
+	setOugis = 10
+	Itachi_Skill05_06
+	setSound = itachi_skill5_1
+	setBuff = 17
+	setSkill = ItachiSusano
+	setCommand = reInvincible
+]
+
+[skill09]
+attackType = KnockDown
+frames = [
+	Itachi_Skill12_01
+	Itachi_Skill12_02
+	Itachi_Skill12_03
+	Itachi_Skill12_04
+	Itachi_Skill12_10
+	setDelay = 300
+	Itachi_Skill12_05
+	Itachi_Skill12_06
+	Itachi_Skill12_07
+	Itachi_Skill12_08
+	Itachi_Skill12_09
+]
+
+[skill10]
+attackType = aAttack
+attackPoints = 660
+attackRangeX = 64
+attackRangeY = 32
+coldDown = 10
+frames = [
+	Itachi_Skill10_01
+	setDelay = 10
+	Itachi_Skill10_02
+	setDelay = 10
+	Itachi_Skill10_03
+	setDelay = 10
+	Itachi_Skill10_02
+	setDelay = 10
+]
+
+[skill11]
+attackType = aAttack
+attackPoints = 660
+attackRangeX = 64
+attackRangeY = 32
+coldDown = 10
+frames = [
+	Itachi_Skill11_01
+	setDelay = 10
+	Itachi_Skill11_02
+	setDelay = 10
+	Itachi_Skill11_03
+	setDelay = 10
+	Itachi_Skill11_04
+	setDelay = 10
+	Itachi_Skill11_05
+	setDelay = 10
+	Itachi_Skill11_06
+	setDelay = 10
+	Itachi_Skill11_07
+	setDelay = 10
+	Itachi_Skill11_08
+	setDelay = 10
+]
+
+[skill12]
+attackType = aAttack
+attackPoints = 560
+attackRangeX = 128
+attackRangeY = 48
+frames = [
+	setSummonAttack = 1
+	setSound = itachi_skill5_2
+	Itachi_Skill10_01
+	setDelay = 10
+	Itachi_Skill10_02
+	setDelay = 10
+	Itachi_Skill10_03
+	setAttackBox = c_hit
+	setDelay = 10
+	Itachi_Skill10_02
+	setDelay = 10
+	setAttackBox = c_hit
+]
