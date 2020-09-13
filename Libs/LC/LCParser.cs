@@ -21,8 +21,8 @@ namespace Re.LC
 
             // return Parse(lines);
             return new LC(
-                name: Path.GetFileName(filePath),
-                lines: null
+                // name: Path.GetFileName(filePath),
+                // lines: null
             );
         }
 
