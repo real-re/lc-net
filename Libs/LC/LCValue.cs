@@ -16,4 +16,27 @@ namespace Re.LC
             return $"(Start: {Start}, End: {End})";
         }
     }
+
+    /** LC Features
+     * 1. Operator .. and ...
+     *     # NOTE: Generaly used for frames of no events
+     *     frames = [
+     *         # Generaly Way
+     *         naurto_idle_001
+     *         naurto_idle_002
+     *         naurto_idle_005
+     *         naurto_idle_007
+     *
+     *         # First Way
+     *         naruto_idle_{001..007}
+     *
+     *         # Secound Way
+     *         naruto_idle_001
+     *         ...
+     *         naruto_idle_007
+     *     ]
+     *
+     * 2. Tag
+     *     # NOTE: Used before key of key-value
+     */
 }

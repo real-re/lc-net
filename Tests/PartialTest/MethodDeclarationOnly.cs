@@ -9,7 +9,6 @@ public static partial class Commands
     /// Run command by name
     /// </summary>
     /// <param name="name">command name</param>
-    /// <returns></returns>
     public static partial void Run(string name);
 
     /// <summary>
@@ -17,6 +16,5 @@ public static partial class Commands
     /// </summary>
     /// <param name="name">command name</param>
     /// <param name="id">command parameter</param>
-    /// <returns></returns>
     public static partial void Run(string name, int id);
 }

@@ -9,7 +9,7 @@ namespace Re.LC
     {
         public string Name => m_Name;
         public string Path => m_Path;
-        // public Span<char> Lines { get; private set; }
+        // public LCData Data { get; }
 
         private string m_Name;
         private string m_Path;

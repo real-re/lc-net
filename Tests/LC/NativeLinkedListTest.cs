@@ -14,7 +14,7 @@ public unsafe static class NativeLinkedListTest
     private static void TestLinkedList()
     {
         const int count = 10;
-        var llist = new NativeLinkedList<LCRange>();
+        using var llist = new NativeLinkedList<LCRange>();
         for (int i = 0; i < count; i++)
             llist.AddAfter(new LCRange(i, (i + 7) * 3));
 

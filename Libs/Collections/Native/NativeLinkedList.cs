@@ -78,12 +78,13 @@ namespace Re.Collections.Native
             if (m_Count == 0)
                 return default;
 
-            Node* tail = m_Tail;
             Node* node = m_Head;
             var value = m_Tail->Value;
 
             if (node->Next != null)
             {
+                Node* tail = m_Tail;
+
                 // Remove and return the last node
                 for (int i = 0; i < m_Count - 2; i++)
                     node = node->Next;
@@ -98,7 +99,7 @@ namespace Re.Collections.Native
             {
                 m_Head->Value = default;
                 // Console.WriteLine($"Free -> {tail->Value}");
-                // 不会清除头部节点，用于下次分配
+                // 不会清除头部节点，用于下次分配复用
                 // Marshal.FreeHGlobal(tail);
                 // TODO: 缓存空节点的内存 Clear() -> 保留内置最低节点长度的内存
             }
@@ -161,8 +162,9 @@ namespace Re.Collections.Native
         {
             if (m_Disposed) return;
 
-            if (!m_Disposed)
-                Clear();
+            Clear();
+            if (m_Head != null)
+                Marshal.FreeHGlobal((IntPtr)m_Head);
             m_Disposed = true;
         }
 
@@ -190,7 +192,7 @@ namespace Re.Collections.Native
 
             private int m_Count;
             private Node* m_Current;
-            private Node* m_Head;
+            private readonly Node* m_Head;
 
             internal Enumerator(Node* head, int count)
             {
