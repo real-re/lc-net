@@ -1,10 +1,13 @@
 #nullable enable
+using System.ComponentModel;
+using Internal.Runtime.CompilerServices;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using Re.Collections.Native;
 using static Re.LC.LCDebug;
+using DbgState = Re.LC.LCDebug.LCDbgState;
 
 namespace Re.LC
 {
@@ -79,38 +82,61 @@ namespace Re.LC
             int length = data.Length;
 
             ctx.OnLCParserStart?.Invoke();
-            for (int i = length - 1; i >= 0; i--)
+            for (int i = 0; i < length; i++)
             {
                 switch (data[i])
                 {
-                    case '\0':
-                        break;
                     case '#': // Commit
                         start = i;
                         // Jump To Next Line Start Position
-                        while (++i < length)
-                        {
-                            if (data[i] == '\n')
-                                break;
-                        }
+                        while (++i < length && data[i] != '\n') ;
 
                         Log(data[start..i], LCDocType.Commit);
                         start = i + 1;
                         break;
                     case '\n':
                         if (ctx.isArray)
-                            continue;
-                        if (ctx.isValue)
                         {
-                            ctx.isValue = false;
-                            if (ctx.hasPairKey)
+                            // AppendArrayValue();
+                            // Print array value
+                            if (start != i) //NOTE: 防止右侧只有括号，而输出空值
                             {
-                                ctx.hasPairKey = false;
-                                Log(data[start..i].Trim(), LCDocType.Value);
+                                var value = data[start..i].Trim();
+                                if (!value.IsEmpty)
+                                {
+                                    if (ctx.hasPairKey)
+                                    {
+                                        ctx.hasPairKey = false;
+                                        Log(value, LCDocType.Value);
+                                    }
+                                    else
+                                    {
+                                        Log(value, LCDocType.ArrayValue);
+                                    }
+                                }
                             }
-                            else
+                            while (++i < length && (data[i] == '\t' || data[i] == ' ' || data[i] == '\r')) ;
+                            start = --i;
+                            break;
+                        }
+                        else if (ctx.isValue)
+                        {
+                            if (start != i) //NOTE: 防止右侧只有括号，而输出空值
                             {
-                                Log(data[start..i].Trim(), LCDocType.ValueOnly);
+                                var value = data[start..i].Trim();
+                                if (!value.IsEmpty)
+                                {
+                                    ctx.isValue = false;
+                                    if (ctx.hasPairKey)
+                                    {
+                                        ctx.hasPairKey = false;
+                                        Log(data[start..i].Trim(), LCDocType.Value);
+                                    }
+                                    else
+                                    {
+                                        Log(data[start..i].Trim(), LCDocType.ValueOnly);
+                                    }
+                                }
                             }
                         }
                         start = i + 1;
@@ -144,9 +170,10 @@ namespace Re.LC
                         else if (ctx.hasPairKey)
                         {
                             ctx.isArray = true;
+                            //NOTE: That key already pair to this array
+                            ctx.hasPairKey = false;
 
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine("[ -- BEGIN Array");
+                            Log(DbgState.Begin_Array);
                         }
                         else if (ctx.isArray)
                         {
@@ -167,29 +194,46 @@ namespace Re.LC
                         }
                         else if (ctx.inlineValue)
                         {
-                            if (--inlineDepth == 0)
+                            if (inlineDepth > 0)
                             {
                                 ctx.inlineValue = false;
-                                inlineDepth = 0;
+                                --inlineDepth;
                             }
                             // Wait for next close `]`
+                            Log(DbgState.End_Inline_Array);
                         }
                         else if (ctx.isArray)
                         {
                             ctx.isArray = false;
+                            if (ctx.isValue)
+                            {
+                                if (start == i - 1)
+                                    Log(Span<char>.Empty, LCDocType.EmptyArray);
+                                var values = data[start..(i - 1)].Trim();
+                                // values => value.Split(' ');
 
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine("] -- Array EOF");
+                                // is array values (multiple)
+                                if (values.Length > 1)
+                                {
+                                    foreach (var v in values)
+                                        Log(v, LCDocType.ArrayValues);
+                                }
+                                else // is array values (only one)
+                                {
+                                    Log(values[0], LCDocType.ArrayValue);
+                                }
+                            }
+                            Log(DbgState.End_Array);
                         }
 
                         while (++i < length)
                         {
                             if (data[i] == '\n')
                                 break;
-                            else if (data[i] != ' ' || data[i] != '\t' || data[i] != '\r')
-                                LogError("Syntax", LCDocType.Value);
+                            if (data[i] != ' ' || data[i] != '\t' || data[i] != '\r')
+                                LogSyntaxError($"Cannot has char `{data[i]}`");
                         }
-                        start = i + 1;
+                        start = i;
                         // if (ctx.isNewSection)
                         //     ctx.isNewSection = false;
                         // else
@@ -348,7 +392,6 @@ namespace Re.LC
         String,
         // LC Value Type
         LCArray,
-        LCTable,
         LCMap
     }
 
@@ -391,7 +434,6 @@ namespace Re.LC
         public LCValue(char* key, string value) { this.key = key; fixed (char* p = value) this.value = p; this.type = LCValueType.String; }
         // LC Value Type
         public LCValue(char* key, LCArray value) { this.key = key; this.value = &value; this.type = LCValueType.LCArray; }
-        public LCValue(char* key, LCTable value) { this.key = key; this.value = &value; this.type = LCValueType.LCTable; }
         public LCValue(char* key, LCMap value) { this.key = key; this.value = &value; this.type = LCValueType.LCMap; }
 
         #endregion
@@ -416,7 +458,6 @@ namespace Re.LC
         public LCValue(string value) { this.key = null; fixed (char* p = value) this.value = p; this.type = LCValueType.String; }
         // LC Value Type
         public LCValue(LCArray value) { this.key = null; this.value = &value; this.type = LCValueType.LCArray; }
-        public LCValue(LCTable value) { this.key = null; this.value = &value; this.type = LCValueType.LCTable; }
         public LCValue(LCMap value) { this.key = null; this.value = &value; this.type = LCValueType.LCMap; }
 
         #endregion
@@ -441,7 +482,6 @@ namespace Re.LC
         public string ReadString() => new string((char*)value);
         // LC Value Type
         public LCArray ReadArray() => *(LCArray*)value;
-        public LCTable ReadTable() => *(LCTable*)value;
         public LCMap ReadMap() => *(LCMap*)value;
 
         #endregion
@@ -464,32 +504,6 @@ namespace Re.LC
             this.value = value;
             this.valuesType = valuesType;
         }
-    }
-
-    public unsafe struct LCTable : ILCValue
-    {
-        public string Key => new string(key);
-        public LCValueType Type => LCValueType.LCTable;
-
-        //NOTE: Mix Array
-        // Key-Value:
-        //   key_value_only_array = [
-        //     name   = naruto
-        //     name_1 = Naruto
-        //     name_2 = Uzumaki Naruto
-        //   ]
-        //
-        // Value Only:
-        //     value-only-array = [
-        // 
-        //     ]
-        //
-        // Mix-Value:
-        //     mix array = [
-        //     
-        //     ]
-        private char* key;
-        private LCValue* values;
     }
 
     public unsafe struct LCMap : ILCValue
