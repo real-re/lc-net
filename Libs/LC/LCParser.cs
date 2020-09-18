@@ -1,11 +1,10 @@
 #nullable enable
-using System.ComponentModel;
-using Internal.Runtime.CompilerServices;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using Re.Collections.Native;
+using Re.LC.Utilities;
 using static Re.LC.LCDebug;
 using DbgState = Re.LC.LCDebug.LCDbgState;
 
@@ -27,13 +26,15 @@ namespace Re.LC
             stream.ReadBlock(buffer);
 
             if (buffer.IsEmpty)
-                throw new NullReferenceException();
-
-            // return Parse(lines);
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"[WARN] Loaded a empty file `{filePath}`!");
+                return null;
+            }
             return Parse(buffer);
         }
 
-        public static LC? FromString(string str)
+        public static LC? Parse(string str)
         {
             if (string.IsNullOrEmpty(str))
                 return null;
@@ -42,7 +43,7 @@ namespace Re.LC
                 return Parse(new Span<char>(ptr, str.Length * 2));
         }
 
-        public static LC? FromString(char[] lc)
+        public static LC? Parse(char[] lc)
         {
             if (lc == null || lc.Length == 0)
                 return null;
@@ -51,7 +52,7 @@ namespace Re.LC
                 return Parse(new Span<char>(ptr, lc.Length));
         }
 
-        public static LC? FromString(byte[] lc)
+        public static LC? Parse(byte[] lc)
         {
             if (lc == null || lc.Length == 0)
                 return null;
@@ -76,14 +77,20 @@ namespace Re.LC
 
             using var sectionLList = new NativeLinkedList<LCSection>(section);
             using var kvLList = new NativeLinkedList<LCValue>();
+            using var splitResults = new SpanLinkedList(data);
 
             int start = 0; // Block start position
             int inlineDepth = 0;
             int length = data.Length;
+            // char* p; //TODO: Use pointer insted of Span<char>
+
+            // fixed (char* cPtr = &data.GetPinnableReference())
+            //     p = cPtr;
 
             ctx.OnLCParserStart?.Invoke();
             for (int i = 0; i < length; i++)
             {
+            Head:
                 switch (data[i])
                 {
                     case '#': // Commit
@@ -104,9 +111,9 @@ namespace Re.LC
                                 var value = data[start..i].Trim();
                                 if (!value.IsEmpty)
                                 {
-                                    if (ctx.hasPairKey)
+                                    if (ctx.hasKey)
                                     {
-                                        ctx.hasPairKey = false;
+                                        ctx.hasKey = false;
                                         Log(value, LCDocType.Value);
                                     }
                                     else
@@ -115,9 +122,10 @@ namespace Re.LC
                                     }
                                 }
                             }
-                            while (++i < length && (data[i] == '\t' || data[i] == ' ' || data[i] == '\r')) ;
-                            start = --i;
-                            break;
+
+                            while (++i < length && (data[i] is '\t' or ' ' or '\r')) ;
+                            start = i;
+                            goto Head;
                         }
                         else if (ctx.isValue)
                         {
@@ -127,9 +135,9 @@ namespace Re.LC
                                 if (!value.IsEmpty)
                                 {
                                     ctx.isValue = false;
-                                    if (ctx.hasPairKey)
+                                    if (ctx.hasKey)
                                     {
-                                        ctx.hasPairKey = false;
+                                        ctx.hasKey = false;
                                         Log(data[start..i].Trim(), LCDocType.Value);
                                     }
                                     else
@@ -138,102 +146,144 @@ namespace Re.LC
                                     }
                                 }
                             }
+                            start = ++i;
+                            goto Head;
                         }
-                        start = i + 1;
                         break;
                     case '=':
                         ctx.isValue = true;
-                        ctx.hasPairKey = true;
-                        ctx.endOfKey = true;
+                        ctx.hasKey = true;
                         if (start == i)
                             LogError("NOT FOUND KEY", LCDocType.Key);
 
                         // Add Key
-                        // ctx.AddKey(data.Slice(start, len));
-                        Log(data[start..i].Trim(), LCDocType.Key);
+                        // ctx.AddKey(data[start, i]);
+                        Log(data[start..i].Trim(), ctx.isArray ? LCDocType.ArrayKey : LCDocType.Key);
 
                         // ctx.isValueStart = true;
-                        start = i + 1;
+                        start = ++i;
                         // ctx.isValue = true;
-                        break;
+                        goto Head;
                     case '{':
                         ctx.isMap = true;
+                        Log(DbgState.Begin_Map);
                         break;
                     case '}':
-                        ctx.endOfMap = true;
+                        ctx.isMap = false;
+                        Log(DbgState.End_Map);
                         break;
                     case '[':
-                        if (ctx.inlineValue)
+                        if (ctx.inlineArray)
                         {
                             inlineDepth++;
+                            // TODO: Check Syntax Error
                         }
-                        else if (ctx.hasPairKey)
+                        else if (ctx.hasKey)
                         {
+                            // TODO: Check Value is not in the same line with Key
                             ctx.isArray = true;
                             //NOTE: That key already pair to this array
-                            ctx.hasPairKey = false;
+                            ctx.hasKey = false;
+                            //TODO: For Now, Only Support Single-Line Array
+                            ctx.isSingleLineArray = true;
 
                             Log(DbgState.Begin_Array);
                         }
                         else if (ctx.isArray)
                         {
-                            ctx.inlineValue = true;
+                            // if (arrays[inlineDepth].Line == arrays[0].Line)
+                            //     ctx.inlineArray = true;
                         }
                         else
                         {
                             ctx.isSection = true;
                         }
-                        start = i + 1;
-                        break;
+
+                        start = ++i;
+                        goto Head;
                     case ']':
                         if (ctx.isSection)
                         {
                             ctx.isSection = false;
                             section = new LCSection(data[start..i].Trim());
+
                             Log(data[start..i].Trim(), LCDocType.Section);
-                        }
-                        else if (ctx.inlineValue)
-                        {
-                            if (inlineDepth > 0)
-                            {
-                                ctx.inlineValue = false;
-                                --inlineDepth;
-                            }
-                            // Wait for next close `]`
-                            Log(DbgState.End_Inline_Array);
-                        }
-                        else if (ctx.isArray)
-                        {
-                            ctx.isArray = false;
-                            if (ctx.isValue)
-                            {
-                                if (start == i - 1)
-                                    Log(Span<char>.Empty, LCDocType.EmptyArray);
-                                var values = data[start..(i - 1)].Trim();
-                                // values => value.Split(' ');
 
-                                // is array values (multiple)
-                                if (values.Length > 1)
-                                {
-                                    foreach (var v in values)
-                                        Log(v, LCDocType.ArrayValues);
-                                }
-                                else // is array values (only one)
-                                {
-                                    Log(values[0], LCDocType.ArrayValue);
-                                }
-                            }
-                            Log(DbgState.End_Array);
-                        }
+                            while (++i < length)
+                            {
+                                if (data[i] is ' ' or '\t' or '\r')
+                                    continue;
+                                if (data[i] == '\n')
+                                    break;
 
-                        while (++i < length)
-                        {
-                            if (data[i] == '\n')
-                                break;
-                            if (data[i] != ' ' || data[i] != '\t' || data[i] != '\r')
                                 LogSyntaxError($"Cannot has char `{data[i]}`");
+                            }
+
+                            if (i >= length)
+                                goto End;
+
+                            start = i;
+                            break;
                         }
-                        start = i;
+                        if (ctx.isArray)
+                        {
+                            if (ctx.isSingleLineArray)
+                            {
+                                ctx.isSingleLineArray = false;
+
+                                if (start < i - 1)
+                                {
+                                    // Is Single Line Array
+                                    var value = data[start..(i - 1)];
+                                    value.Split(' ', splitResults);
+                                    // Is Multi-Line Array
+
+                                    // is array values (multiple)
+                                    if (splitResults.Count > 0)
+                                    {
+                                        foreach (var v in splitResults)
+                                            Log(v, LCDocType.ArrayValues);
+                                        splitResults.Clear();
+                                    }
+                                    else // is array values (only one)
+                                    {
+                                        Log(value.Trim(), LCDocType.ArrayValue);
+                                    }
+                                }
+                                // Is Multi-Line Array
+                                Log(DbgState.End_Array);
+                            }
+                            if (ctx.inlineArray)
+                            {
+                                if (inlineDepth > 0)
+                                {
+                                    ctx.inlineArray = false;
+                                    --inlineDepth;
+
+                                    Log(DbgState.End_Inline_Array);
+                                }
+                                // Wait for next close `]`
+                            }
+                            else
+                            {
+                                ctx.isArray = false;
+                            }
+                        }
+                        {
+                            int index = i + 1;
+                            while (index < length)
+                            {
+                                if (data[index] is not '\n' or ' ' or '\t' or '\r') break;
+                                if (data[index] == '[') goto case '[';
+                                if (data[index] == ']') goto case ']';
+                                if (data[index] == '{') goto case '{';
+                                if (data[index] == '}') goto case '}';
+
+                                i = index++;
+                                // LogSyntaxError($"Cannot has char `{data[i]}`");
+                            }
+                            start = i;
+                        }
                         // if (ctx.isNewSection)
                         //     ctx.isNewSection = false;
                         // else
@@ -251,6 +301,7 @@ namespace Re.LC
                         break;
                 }
             }
+        End:
             ctx.OnLCParserEOF?.Invoke();
 
             #endregion
@@ -259,26 +310,20 @@ namespace Re.LC
         }
     }
 
-    // [StructLayout(LayoutKind.Explicit)]
     internal ref struct LCParserContext
     {
         // Section
         public bool isSection;
-        public bool endOfSection;
         // Key
-        public bool isKey;
-        public bool endOfKey;
-        public bool hasPairKey;
+        public bool hasKey;
         // Value
         public bool isValue;
-        public bool endOfValue;
-        public bool inlineValue;
+        public bool inlineArray;
         // Array Value
-        public bool isArray;
-        public bool endOfArray;
+        public bool isArray; // Multi-Line Array
+        public bool isSingleLineArray;
         // Map Value
         public bool isMap;
-        public bool endOfMap;
 
         public Action? OnLCParserStart;
         public Action? OnLCParserEOF;
@@ -286,15 +331,15 @@ namespace Re.LC
 
     public unsafe ref struct LCData
     {
-        public Span<char> Name { get; }
+        public Span<char> Name { get; set; }
         public Span<LCSection> Sections { get; }
-        public bool HasEmptySection { get; }
+        public bool HasTopLevelSection { get; }
 
         public LCData(Span<char> name, Span<LCSection> sections, bool hasEmptySection)
         {
             this.Name = name;
             this.Sections = sections;
-            this.HasEmptySection = !sections.IsEmpty && hasEmptySection && sections[0].Name == null;
+            this.HasTopLevelSection = !sections.IsEmpty && hasEmptySection && sections[0].Name == null;
         }
 
         public override string? ToString()
@@ -306,7 +351,7 @@ namespace Re.LC
 
             foreach (var section in Sections)
             {
-                builder.Append("Section: ").Append(section.Name ?? "____ROOT").Append(": [ ")
+                builder.Append("Section: ").Append(section.Name ?? "__ROOT__").Append(": [ ")
                        .Append(section.IsEmpty ? "null" : section.ToString()).AppendLine(" ]");
             }
 
@@ -318,22 +363,19 @@ namespace Re.LC
 
     public unsafe struct LCSection
     {
-        private char* name;
-        private char** keys;
-        private LCValue* values;
-        private int length;
-        private int nameLen;
-
-        //TODO: Custom string intern pool
         public string? Name => name == null ? null : new string(name);
         public int Count => length;
-        public bool IsEmpty => length == 0 && keys == null && values == null;
+        public bool IsEmpty => length == 0 && values == null;
+
+        private char* name;
+        private LCValue* values;
+        private int length;
 
         public LCValue this[int index]
         {
             get
             {
-                if (keys == null || values == null)
+                if (values == null)
                     throw new NullReferenceException();
 
                 if (index < 0 || index >= length)
@@ -345,17 +387,8 @@ namespace Re.LC
 
         public LCSection(Span<char> name)
         {
-            if (name.IsEmpty)
-            {
-                this.name = null;
-            }
-            else
-            {
-                fixed (char* p = &name.GetPinnableReference())
-                    this.name = p;
-            }
-            this.nameLen = name.Length;
-            this.keys = null;
+            fixed (char* p = &name.GetPinnableReference())
+                this.name = name.IsEmpty ? null : p;
             this.values = null;
             this.length = 0;
         }
@@ -388,6 +421,7 @@ namespace Re.LC
         Float,
         Double,
         Decimal,
+        Enum,
         // Reference Type (Will As Span<char>)
         String,
         // LC Value Type
@@ -540,6 +574,12 @@ namespace Re.LC
             var t = typeof(T);
             if (t.IsPrimitive)
             {
+                if (t == typeof(LCArray))
+                    return LCValueType.LCArray;
+                if (t == typeof(LCMap))
+                    return LCValueType.LCMap;
+                if (t == typeof(Enum))
+                    return LCValueType.Enum;
                 if (t == typeof(int))
                     return LCValueType.Int;
                 if (t == typeof(float))
@@ -562,6 +602,11 @@ namespace Re.LC
                     return LCValueType.UInt16;
                 if (t == typeof(ulong))
                     return LCValueType.UInt64;
+            }
+            if (t.IsClass)
+            {
+                if (t == typeof(string))
+                    return LCValueType.String;
             }
             if (t.IsPointer)
                 return LCValueType.VoidPtr;

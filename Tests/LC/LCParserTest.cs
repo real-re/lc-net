@@ -6,7 +6,12 @@ public static class LCParserTest
 {
     public static void Run()
     {
-        var path = "Config/Itachi.lc";
+        Parse("Config/Sample.lc");
+        Parse("Config/Example.lc");
+    }
+
+    private static void Parse(string path)
+    {
         var lc = LCParser.From(path);
 
         if (!lc.HasValue)

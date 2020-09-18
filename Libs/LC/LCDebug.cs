@@ -12,6 +12,7 @@ namespace Re.LC
             // ErrorSyntax,
             Section,
             Key,
+            ArrayKey,
             Value,
             ValueOnly,
             ArrayValue,
@@ -61,7 +62,7 @@ namespace Re.LC
             Console.Write(begin);
             Console.ForegroundColor = ConsoleColor.DarkBlue;
             Console.Write(" --> ");
-            Console.ForegroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = ConsoleColor.DarkRed;
             Console.WriteLine(end);
         }
 
@@ -70,20 +71,25 @@ namespace Re.LC
             string name;
             (Console.ForegroundColor, name) = type switch
             {
-                LCDocType.Section => (ConsoleColor.Blue, "SECTION"),
-                LCDocType.Key => (ConsoleColor.Red, "KEY  "),
-                LCDocType.Value => (ConsoleColor.Cyan, "VALUE"),
-                LCDocType.ValueOnly => (ConsoleColor.Cyan, "VALUE-ONLY"),
-                LCDocType.ArrayValue => (ConsoleColor.Cyan, "\tARRAY-VALUE"),
-                LCDocType.ArrayValues => (ConsoleColor.Cyan, "\tARRAY-VALUES"),
+                LCDocType.Section => (ConsoleColor.DarkBlue, "SECTION"),
+                LCDocType.Key => (ConsoleColor.DarkRed, "KEY   "),
+                LCDocType.ArrayKey => (ConsoleColor.DarkRed, "\tKEY   "),
+                LCDocType.Value => (ConsoleColor.DarkCyan, "VALUE "),
+                LCDocType.ValueOnly => (ConsoleColor.DarkCyan, "VALUE-ONLY"),
+                LCDocType.ArrayValue => (ConsoleColor.DarkCyan, "\tARRAY-VALUE"),
+                LCDocType.ArrayValues => (ConsoleColor.DarkCyan, "\tARRAY-VALUES"),
                 LCDocType.EmptyArray => (ConsoleColor.DarkRed, "\tEMPTY-ARRAY"),
                 LCDocType.Commit => (ConsoleColor.DarkGray, "COMMIT"),
                 LCDocType.InternalKey => (ConsoleColor.DarkMagenta, "INTERNAL-KEY"),
-                LCDocType.Tag => (ConsoleColor.Green, "@TAG"),
-                _ => (ConsoleColor.DarkRed, "UNKNOWN"),
+                LCDocType.Tag => (ConsoleColor.DarkGreen, "@TAG  "),
+                _ => (ConsoleColor.Red, "UNKNOWN"),
             };
-            Console.Write($"{name} : ");
-            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write(name);
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.Write(": ");
+            Console.ForegroundColor = type == LCDocType.Commit
+                ? ConsoleColor.DarkGray
+                : ConsoleColor.Blue;
             Console.WriteLine(value.ToString());
         }
 

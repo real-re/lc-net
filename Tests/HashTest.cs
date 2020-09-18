@@ -82,13 +82,5 @@ public unsafe static class HashTest
             sb.Clear();
             // Console.Write($"\t<==> Reverse: {hash.ReverseHash()}");
         }
-
-        PrintAnsiCharacters();
-    }
-
-    private static void PrintAnsiCharacters()
-    {
-        // const string str = "abcdefghijklmnopqrstuvwxyz" +   // 65-90
-        // "ABCDEFGHIJKLMNOPQRSTUVWXYZ";                   // 97-122
     }
 }

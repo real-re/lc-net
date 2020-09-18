@@ -2,31 +2,34 @@ using System;
 
 namespace Re.LC.Utilities
 {
-    public unsafe static class SpanUtilities
+    internal unsafe static class SpanUtilities
     {
-        public static Span<char> Split(this Span<char> span, char sep)
+        internal static void Split(this Span<char> span, char sep, SpanLinkedList results)
         {
             if (span.IsEmpty)
-                return span;
+                return;
 
             int len = span.Length;
             int i = 0, start = 0;
 
             fixed (char* p = &span.GetPinnableReference())
             {
-                while (i < len)
+                do
                 {
                     if (p[i] == sep)
                     {
                         if (start != i)
-                            AddValue(p[start..i]);
+                            results.Add(start, i - start);
                         start = ++i;
                         continue;
                     }
                     ++i;
                 }
+                while (i < len);
+
+                if (start != len)
+                    results.Add(start, i - start);
             }
-            return span;
         }
     }
 }
