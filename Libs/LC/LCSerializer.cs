@@ -20,7 +20,7 @@ namespace Re.LC
         public static T Deserialize<T>(string value) where T : new()
         {
             var props = typeof(T).GetProperties(kDefaultFlags);
-            if (props == null || props.Length == 0)
+            if (props is null || props.Length == 0)
                 return default;
 
             var t = new T();

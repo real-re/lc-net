@@ -103,7 +103,7 @@ namespace Re.LC
         {
             Console.ForegroundColor = ConsoleColor.DarkRed;
             var frame = new StackTrace(1, true).GetFrame(0);
-            if (frame == null)
+            if (frame is null)
                 throw new SyntaxErrorException($"[Syntax ERROR] {value}");
             throw new SyntaxErrorException($"[Syntax ERROR] {value} in `{frame.GetFileName()}` Line: {frame.GetFileLineNumber()} Column: {frame.GetFileColumnNumber()}");
         }

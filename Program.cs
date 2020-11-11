@@ -1,7 +1,4 @@
+// Test Program
+// TestUtilities.RunAllTests();
 
-Run();
-
-static void Run()
-{
-    TestUtilities.RunAllTests();
-}
+LCParserTest.Run();

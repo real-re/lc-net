@@ -1,3 +1,13 @@
-# 1. Game Configuration
+author  = Re
+data    = 2020-11-11
 
-# 2. Software Configuration
+# Core data
+[Core]
+# Key-Value Type
+name    = Itachi
+hp      = 5000
+width   = 40
+height  = 80
+# Range Type
+atk_range 		= 8..12
+attack_points 	= 12..35

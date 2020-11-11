@@ -20,7 +20,7 @@ public unsafe static class DataBuffer
 
     public static void Cache(void* value, int id)
     {
-        if (value == null)
+        if (value is null)
         {
             Console.WriteLine($"Cache {typeof(void*)} type ID: {id} can't be null");
             return;
@@ -70,7 +70,7 @@ public unsafe static class DataBuffer
 
     public static void Cache(object value, int id)
     {
-        if (value == null)
+        if (value is null)
         {
             Console.WriteLine($"Cache value: {value} ID: {id} can't be null");
             return;
@@ -80,7 +80,7 @@ public unsafe static class DataBuffer
 
     public static void Cache(object value, string id)
     {
-        if (value == null || string.IsNullOrEmpty(id))
+        if (value is null || string.IsNullOrEmpty(id))
         {
             Console.WriteLine($"Cache value: {value} or id: {id} can't be null");
             return;

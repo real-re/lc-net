@@ -28,9 +28,4 @@ public unsafe static class StringUtilities
             return result;
         }
     }
-
-    public static string ReverseHash(this int hash)
-    {
-        return null;
-    }
 }

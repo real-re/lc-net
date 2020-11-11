@@ -7,7 +7,7 @@ namespace Re.LC.Utilities
     public unsafe struct SpanLinkedList : IDisposable
     {
         public int Count => _count;
-        public bool IsEmptySource => _source == null;
+        public bool IsEmptySource => _source is null;
         public Span<char> First => (_source != null && _count != 0)
             ? new Span<char>(_source + _head[0].Start, _head[0].Length)
             : new Span<char>(_source, _length);
@@ -50,7 +50,7 @@ namespace Re.LC.Utilities
             ptr->Start = start;
             ptr->Length = length;
 
-            if (_head == null)
+            if (_head is null)
                 _head = ptr;
             else
                 _tail->Next = ptr;

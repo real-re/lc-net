@@ -111,13 +111,13 @@ namespace Re.Collections.Native
 
         public void Clear()
         {
-            if (_count != 0 || _head != null)
+            if (_count > 0 && _head != null && !_disposed)
             {
-                var next = _head;
+                Node* next = _head;
 
                 for (int i = 0; i < _count; i++)
                 {
-                    var node = next;
+                    Node* node = next;
                     next = next->Next;
                     // Console.WriteLine($"Free -> {node->Value}");
                     Marshal.FreeHGlobal((IntPtr)node);
@@ -157,6 +157,26 @@ namespace Re.Collections.Native
             builder.AppendLine();
             return builder.ToString();
         }
+
+        public Span<T> ToSpan()
+        {
+            if (_count > 0 && _head != null && !_disposed)
+            {
+                Span<T> span = new T[_count];
+                Node* node = _head;
+                for (int i = 0; i < _count; i++)
+                {
+                    span[i] = node->Value;
+                    node = node->Next;
+                }
+                return span;
+            }
+            else
+            {
+                return Span<T>.Empty;
+            }
+        }
+
 
         public void Dispose()
         {

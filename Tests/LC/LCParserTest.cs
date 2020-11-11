@@ -6,7 +6,7 @@ public static class LCParserTest
 {
     public static void Run()
     {
-        Parse("Config/Sample.lc");
+        // Parse("Config/Sample.lc");
         Parse("Config/Example.lc");
     }
 
@@ -14,19 +14,24 @@ public static class LCParserTest
     {
         var lc = LCParser.From(path);
 
-        if (!lc.HasValue)
+        if (lc.IsEmpty)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Load file `{path}` error");
+            Console.WriteLine($"Load empty file `{path}`");
         }
         else
         {
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"Load file `{path}` success");
+            Console.WriteLine($"\nLoad file `{path}` success\n");
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("---- LC File ----");
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine(lc.Value.ToString());
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(lc.ToString());
+            Console.ForegroundColor = ConsoleColor.Gray;
         }
+    }
+
+    private static void Test_LC_Parser(string doc, string result)
+    {
     }
 }
