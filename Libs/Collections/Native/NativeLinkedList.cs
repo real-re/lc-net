@@ -138,7 +138,7 @@ namespace Re.Collections.Native
             if (_head == null)
                 return;
 
-            if (index == _count)
+            if (index == _count - 1)
             {
                 if (_tail != null)
                     _tail->Value = value;
@@ -184,7 +184,7 @@ namespace Re.Collections.Native
         public override string ToString()
         {
             if (_count == 0 || _head == null || _disposed)
-                return "null";
+                return string.Empty;
 
             var builder = new StringBuilder();
             var sep = stackalloc char[] { ',', ' ' };
@@ -199,7 +199,7 @@ namespace Re.Collections.Native
             while (p != null);
 
             if (builder.Length == 0)
-                return "";
+                return string.Empty;
 
             builder.AppendLine();
             return builder.ToString();
@@ -260,7 +260,7 @@ namespace Re.Collections.Native
                 if (_index == _count)
                     return false;
 
-                _index = 0; // NOTE: 特殊计数法 用于LinkedList
+                _index = 0;
                 return _current != null;
             }
         }
