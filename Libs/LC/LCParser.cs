@@ -76,26 +76,31 @@ namespace Re.LC
             if (isTrimed)
                 data = data.Trim();
 
-            #region Main Parser
+            #region Main Loop
 
             LCParserContext ctx = new();
 
             using NativeLinkedList<LCSection> sectionLList = new();
-            using NativeLinkedList<LCValue> kvLList = new();
+            using NativeLinkedList<LCValue> kvLList = new(); // Items list of section
             using SpanLinkedList splitResults = new(data);
 
             Span<char> sectionName = default;
             Span<char> key = default;
+            NativeLinkedList<LCValue> arr = default;
 
             int start = 0; // Block start position
-            int inlineDepth = 0;
+            int inlineDepth = 0; // Inline array counter
             int length = data.Length;
+
+            char* pData;
+            fixed (char* ptr = &data.GetPinnableReference())
+                pData = ptr;
 
             ctx.OnLCParserStart?.Invoke();
             for (int i = 0; i < length; i++)
             {
             Head:
-                switch (data[i])
+                switch (pData[i])
                 {
                     case '#': // Commit
                         start = i;
@@ -105,10 +110,9 @@ namespace Re.LC
                         Log(data[start..i], LCDocType.Commit);
                         start = i + 1;
                         break;
-                    case '\n':
+                    case '\n' or ' ' or '\t' or '\r':
                         if (ctx.isArray)
                         {
-                            // AppendArrayValue();
                             // Print array value
                             if (start != i) //NOTE: 防止右侧只有括号，而输出空值
                             {
@@ -118,18 +122,34 @@ namespace Re.LC
                                     if (ctx.hasKey)
                                     {
                                         ctx.hasKey = false;
-                                        AddKeyValue(ref key, value);
-                                        Log(value, LCDocType.Value);
+                                        AddArrayItem(ref arr, new LCValue(key, value));
+                                        key = default;
+                                        Log(value, LCDocType.ArrayValue);
                                     }
                                     else
                                     {
-                                        //TODO: Appent value to array
-                                        Log(value, LCDocType.ArrayValue);
+                                        // Check Next Flag Is '=' (Has Key Flag)
+                                        while (++i < length)
+                                        {
+                                            if (data[i] is '\t' or ' ' or '\n' or '\r') continue;
+                                            if (data[i] is '=') goto case '=';
+                                            break;
+                                        }
+
+                                        AddArrayItem(ref arr, new LCValue(default, value));
+                                        Log(value, LCDocType.ArrayValueOnly);
+                                        start = i;
+                                        goto Head;
                                     }
                                 }
                             }
 
-                            while (++i < length && (data[i] is '\t' or ' ' or '\r')) ;
+                            while (++i < length)
+                            {
+                                if (data[i] is '\t' or ' ' or '\n' or '\r') continue;
+                                if (data[i] is '=') goto case '=';
+                                break;
+                            }
                             start = i;
                             goto Head;
                         }
@@ -161,7 +181,7 @@ namespace Re.LC
                         ctx.isValue = true;
                         ctx.hasKey = true;
                         if (start == i)
-                            LogError("NOT FOUND KEY", LCDocType.Key);
+                            LogSyntaxError("Not found key");
 
                         // Add Key
                         if (!key.IsEmpty)
@@ -173,9 +193,7 @@ namespace Re.LC
                             key = data[start..i].Trim();
                             Log(key, ctx.isArray ? LCDocType.ArrayKey : LCDocType.Key);
                         }
-                        // ctx.isValueStart = true;
                         start = ++i;
-                        // ctx.isValue = true;
                         goto Head;
                     case '{':
                         ctx.isMap = true;
@@ -197,8 +215,9 @@ namespace Re.LC
                             ctx.isArray = true;
                             //NOTE: That key already pair to this array
                             ctx.hasKey = false;
-                            //TODO: For Now, Only Support Single-Line Array
-                            ctx.isSingleLineArray = true;
+                            //TODO: For Now, Only Support Multiple-Line Array
+                            ctx.isMultipleLineArray = true;
+                            AddArray(ref arr, ref key);
 
                             Log(DbgState.Begin_Array);
                         }
@@ -245,9 +264,20 @@ namespace Re.LC
                         }
                         if (ctx.isArray)
                         {
-                            if (ctx.isSingleLineArray)
+                            if (ctx.isValue)
                             {
-                                ctx.isSingleLineArray = false;
+                                //TODO: Check if there has an array key or didn't add an array
+                                // then try as value as in-array value-only
+                                // if failed then syntax error
+                                // if(CheckHasArrayKey())
+                                //
+                                // else
+                                //
+                                ctx.isValue = false;
+                            }
+                            if (ctx.isMultipleLineArray)
+                            {
+                                ctx.isMultipleLineArray = false;
 
                                 if (start < i - 1)
                                 {
@@ -269,6 +299,7 @@ namespace Re.LC
                                     }
                                 }
                                 // Is Multi-Line Array
+                                EndOfArray(ref arr);
                                 Log(DbgState.End_Array);
                             }
                             if (ctx.inlineArray)
@@ -307,24 +338,16 @@ namespace Re.LC
                         // else
                         //     ctx.isEndOfArray = true;
                         break;
-                    // case ' ' or '\t' or '\r':
-                    //     if (start == i)
-                    //         start++;
-                    //     break;
-                    default:
-                        // Add Value
-                        // ctx.AddValue(data.Slice(start, len), LCValueType.$Type);
-                        // if (ctx.EndValue)
-                        //     ctx.BeginKey = true;
-                        break;
                 }
             }
         End:
             ctx.OnLCParserEOF?.Invoke();
 
+            return new LC(new LCData(Span<char>.Empty, path, sectionLList.ToSpan()));
+
             #endregion
 
-            return new LC(new LCData(Span<char>.Empty, path, sectionLList.ToSpan()));
+            #region Utilities
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             void AddKeyValue(ref Span<char> key, Span<char> value)
@@ -338,6 +361,46 @@ namespace Re.LC
                 kvLList.AddAfter(new LCValue(key, value));
                 key = default;
             }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            void AddArray(ref NativeLinkedList<LCValue> arr, ref Span<char> key)
+            {
+                if (!arr.IsEmpty)
+                {
+                    LogSyntaxError("Found not empty array before Key-Array");
+                }
+
+                if (key.IsEmpty) // Inline array
+                {
+                }
+                else
+                {
+                    kvLList.AddAfter(new LCValue(key));
+                    key = default;
+                }
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            void AddArrayItem(ref NativeLinkedList<LCValue> arr, LCValue item)
+            {
+                arr.AddAfter(item);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            void EndOfArray(ref NativeLinkedList<LCValue> arr)
+            {
+                var arrItem = kvLList.Peek();
+                if (arrItem.Key is null)
+                {
+                    LogSyntaxError("Found null array key");
+                }
+
+                arrItem.SetValue(arr.ToSpan());
+                kvLList.SetValue(kvLList.Count, arrItem);
+                arr = default;
+            }
+
+            #endregion
         }
     }
 
@@ -352,7 +415,7 @@ namespace Re.LC
         public bool inlineArray;
         // Array Value
         public bool isArray; // Multi-Line Array
-        public bool isSingleLineArray;
+        public bool isMultipleLineArray;
         // Map Value
         public bool isMap;
 
@@ -501,6 +564,14 @@ namespace Re.LC
 
         #region Key-Value
 
+        public LCValue(Span<char> key)
+        {
+            fixed (char* kPtr = &key.GetPinnableReference()) this.key = kPtr; this.keyLength = key.Length;
+            this.value = null;
+            this.valueLength = 0;
+            this.type = LCValueType.String;
+        }
+
         public LCValue(Span<char> key, Span<char> value)
         {
             fixed (char* kPtr = &key.GetPinnableReference()) this.key = kPtr; this.keyLength = key.Length;
@@ -550,18 +621,38 @@ namespace Re.LC
         // public decimal ReadDecimal() => *(decimal*)value;
         public string ReadString() => new string((char*)value, 0, valueLength);
         // LC Value Type
-        // public LCArray ReadArray() => *(LCArray*)value;
+        public Span<LCValue> ReadArray() => (value != null && valueLength > 0) ? new Span<LCValue>(value, valueLength) : default;
         // public LCMap ReadMap() => *(LCMap*)value;
 
         #endregion
 
+        public void SetValue(Span<char> value)
+        {
+            fixed (char* ptr = &value.GetPinnableReference())
+                this.value = ptr;
+            this.valueLength = value.Length;
+            this.type = LCValueType.String;
+        }
+
+        public void SetValue(Span<LCValue> value)
+        {
+            fixed (LCValue* ptr = &value.GetPinnableReference())
+                this.value = ptr;
+            this.valueLength = value.Length;
+            this.type = LCValueType.LCArray;
+        }
+
+        public void SetValue<T>(T value) where T : unmanaged
+        {
+            var refValue = Unsafe.AsRef(in value);
+            this.value = &refValue;
+        }
+
         public override string ToString()
         {
             StringBuilder builder = new();
-            builder.Append("Key: ")
-                    .Append(' ')
-                    .Append(Key)
-                    .Append("\tValue: ");
+            if (!string.IsNullOrEmpty(Key))
+                builder.Append(Key).Append("\t: ");
             (type switch
             {
                 LCValueType.Unknown => builder.Append(nameof(LCValueType.Unknown)),
@@ -583,7 +674,7 @@ namespace Re.LC
                 // Reference Type (Will As Span<char>)
                 LCValueType.String => builder.Append(ReadString()),
                 // LC Value Type
-                LCValueType.LCArray => builder.Append(ReadValue<LCArray>().ToString()),
+                LCValueType.LCArray => builder.Append(ReadArray().Join()),
                 LCValueType.LCMap => builder.Append(ReadValue<LCMap>().ToString()),
                 _ => builder.Append("[ Unknown Value Type ]"),
             }).AppendLine();
@@ -591,24 +682,24 @@ namespace Re.LC
         }
     }
 
-    public unsafe struct LCArray : ILCValue
-    {
-        public string? Key => new string(key);
-        public LCValueType Type => LCValueType.LCArray;
-        public LCValueType ValuesType => valuesType;
+    // public unsafe struct LCArray : ILCValue
+    // {
+    //     public string? Key => new string(key);
+    //     public LCValueType Type => LCValueType.LCArray;
+    //     public LCValueType ValuesType => valuesType;
 
-        // Key - Same Type Values
-        private char* key;
-        private void* value;
-        private LCValueType valuesType;
+    //     // Key - Same Type Values
+    //     private char* key;
+    //     private void* value;
+    //     private LCValueType valuesType;
 
-        public LCArray(char* key, void* value, LCValueType valuesType)
-        {
-            this.key = key;
-            this.value = value;
-            this.valuesType = valuesType;
-        }
-    }
+    //     public LCArray(char* key, void* value, LCValueType valuesType)
+    //     {
+    //         this.key = key;
+    //         this.value = value;
+    //         this.valuesType = valuesType;
+    //     }
+    // }
 
     public unsafe struct LCMap : ILCValue
     {
@@ -632,19 +723,19 @@ namespace Re.LC
         public static LCMap Create<TKey, TValue>(char* key)
         {
             return new LCMap(key,
-                keyType: LCValueTypeUtilities.GetLCType<TKey>(),
-                valueType: LCValueTypeUtilities.GetLCType<TValue>());
+                keyType: LCValueUtilities.GetLCType<TKey>(),
+                valueType: LCValueUtilities.GetLCType<TValue>());
         }
     }
 
-    internal static class LCValueTypeUtilities
+    internal static class LCValueUtilities
     {
         public static LCValueType GetLCType<T>()
         {
             var t = typeof(T);
             if (t.IsPrimitive)
             {
-                if (t == typeof(LCArray))
+                if (t == typeof(LCValue*))
                     return LCValueType.LCArray;
                 if (t == typeof(LCMap))
                     return LCValueType.LCMap;
@@ -676,6 +767,28 @@ namespace Re.LC
             if (t == typeof(string))
                 return LCValueType.String;
             return LCValueType.Unknown;
+        }
+
+        public static string? Join<LCT>(this Span<LCT> source, string? sep = null) where LCT : ILCValue
+        {
+            if (source.Length == 0)
+                return string.Empty;
+
+            StringBuilder builder = new("[\n");
+            if (sep is null)
+            {
+                foreach (var item in source)
+                    builder.Append('\t').Append(item.ToString());
+            }
+            else
+            {
+                foreach (var item in source)
+                    builder.Append('\t').Append(item.ToString()).Append(sep);
+                builder.Remove(builder.Length - sep.Length, sep.Length);
+            }
+            // Remove last sep
+            builder.Append(']');
+            return builder.ToString();
         }
     }
 }

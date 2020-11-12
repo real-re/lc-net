@@ -16,6 +16,7 @@ namespace Re.LC
             Value,
             ValueOnly,
             ArrayValue,
+            ArrayValueOnly,
             ArrayValues,
             EmptyArray,
             Commit,         // Start with `#`
@@ -46,6 +47,7 @@ namespace Re.LC
             End_Map,
         }
 
+        [Conditional("DEBUG")]
         internal static void Log(LCDbgState state)
         {
             var (begin, end) = state switch
@@ -66,6 +68,7 @@ namespace Re.LC
             Console.WriteLine(end);
         }
 
+        [Conditional("DEBUG")]
         internal static void Log(Span<char> value, LCDocType type)
         {
             string name;
@@ -76,7 +79,8 @@ namespace Re.LC
                 LCDocType.ArrayKey => (ConsoleColor.DarkRed, "\tKEY   "),
                 LCDocType.Value => (ConsoleColor.DarkCyan, "VALUE "),
                 LCDocType.ValueOnly => (ConsoleColor.DarkCyan, "VALUE-ONLY"),
-                LCDocType.ArrayValue => (ConsoleColor.DarkCyan, "\tARRAY-VALUE"),
+                LCDocType.ArrayValue => (ConsoleColor.DarkCyan, "\tVALUE "),
+                LCDocType.ArrayValueOnly => (ConsoleColor.DarkCyan, "\tVALUE-ONLY"),
                 LCDocType.ArrayValues => (ConsoleColor.DarkCyan, "\tARRAY-VALUES"),
                 LCDocType.EmptyArray => (ConsoleColor.DarkRed, "\tEMPTY-ARRAY"),
                 LCDocType.Commit => (ConsoleColor.DarkGray, "COMMIT"),

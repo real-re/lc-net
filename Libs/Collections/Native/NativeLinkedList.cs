@@ -66,6 +66,26 @@ namespace Re.Collections.Native
             _count++;
         }
 
+        public void Clear()
+        {
+            if (_count > 0 && _head != null && !_disposed)
+            {
+                Node* next = _head;
+
+                for (int i = 0; i < _count; i++)
+                {
+                    Node* node = next;
+                    next = next->Next;
+                    // Console.WriteLine($"Free -> {node->Value}");
+                    Marshal.FreeHGlobal((IntPtr)node);
+                }
+
+                _head = null;
+                _tail = null;
+                _count = 0;
+            }
+        }
+
         public T Peek()
         {
             if (_tail == null)
@@ -109,53 +129,37 @@ namespace Re.Collections.Native
             return value;
         }
 
-        public void Clear()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetValue(int index, T value)
         {
-            if (_count > 0 && _head != null && !_disposed)
+            if (index < 0 && index <= _count)
+                return;
+
+            if (_head == null)
+                return;
+
+            if (index == _count)
             {
-                Node* next = _head;
-
-                for (int i = 0; i < _count; i++)
-                {
-                    Node* node = next;
-                    next = next->Next;
-                    // Console.WriteLine($"Free -> {node->Value}");
-                    Marshal.FreeHGlobal((IntPtr)node);
-                }
-
-                _head = null;
-                _tail = null;
-                _count = 0;
+                if (_tail != null)
+                    _tail->Value = value;
+                return;
             }
+
+            Node* node = _head;
+            for (int i = 0; i < _count; i++)
+            {
+                if (i == index)
+                    break;
+                node = node->Next;
+            }
+            if (node == null)
+                return;
+            node->Value = value;
         }
 
         public Enumerator GetEnumerator()
         {
             return new Enumerator(_head, _count);
-        }
-
-        public override string ToString()
-        {
-            if (_count == 0)
-                return "null";
-
-            var builder = new StringBuilder();
-            var sep = stackalloc char[] { ',', ' ' };
-            var p = _head;
-
-            do
-            {
-                builder.Append(p->Value.ToString())
-                       .Append(sep, 2);
-                p = p->Next;
-            }
-            while (p != null);
-
-            if (builder.Length == 0)
-                return "null";
-
-            builder.AppendLine();
-            return builder.ToString();
         }
 
         public Span<T> ToSpan()
@@ -177,6 +181,29 @@ namespace Re.Collections.Native
             }
         }
 
+        public override string ToString()
+        {
+            if (_count == 0 || _head == null || _disposed)
+                return "null";
+
+            var builder = new StringBuilder();
+            var sep = stackalloc char[] { ',', ' ' };
+            var p = _head;
+
+            do
+            {
+                builder.Append(p->Value.ToString())
+                       .Append(sep, 2);
+                p = p->Next;
+            }
+            while (p != null);
+
+            if (builder.Length == 0)
+                return "";
+
+            builder.AppendLine();
+            return builder.ToString();
+        }
 
         public void Dispose()
         {
