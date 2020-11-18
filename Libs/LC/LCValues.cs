@@ -71,7 +71,7 @@ namespace Re.LC
             if (IsEmpty)
                 return null;
 
-            StringBuilder builder = new($"Section: {Name ?? "__MAIN__"}\n");
+            StringBuilder builder = new($"[Section] : {Name ?? "__MAIN__"}\n");
             for (int i = 0; i < length; i++)
                 builder.Append(values[i].ToString());
             builder.AppendLine();
@@ -267,7 +267,7 @@ namespace Re.LC
         {
             StringBuilder builder = new();
             if (!string.IsNullOrEmpty(Key))
-                builder.Append(Key).Append("\t: ");
+                builder.Append(Key).Append(" : ");
             (type switch
             {
                 LCValueType.Unknown => builder.Append(nameof(LCValueType.Unknown)),
@@ -466,12 +466,12 @@ namespace Re.LC
             if (sep is null)
             {
                 foreach (var item in source)
-                    builder.Append('\t').Append(item.ToString());
+                    builder.Append(item.ToString());
             }
             else
             {
                 foreach (var item in source)
-                    builder.Append('\t').Append(item.ToString()).Append(sep);
+                    builder.Append(item.ToString()).Append(sep);
                 builder.Remove(builder.Length - sep.Length, sep.Length);
             }
             // Remove last sep

@@ -1,5 +1,4 @@
 #nullable enable
-using System.Collections.Specialized;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -105,7 +104,7 @@ namespace Re.LC
                     case '#': // Commit
                         start = i;
                         // Jump To Next Line Start Position
-                        while (++i < length && data[i] != '\n') ;
+                        while (++i < length && pData[i] != '\n') ;
 
                         Log(data[start..i], LCDocType.Commit);
                         start = i + 1;
@@ -130,13 +129,12 @@ namespace Re.LC
                                         // Check Next Flag Is '=' (Has Key Flag)
                                         while (++i < length)
                                         {
-                                            if (data[i] is '\t' or ' ' or '\n' or '\r') continue;
-                                            if (data[i] is '=') goto case '=';
+                                            if (pData[i] is '\t' or ' ' or '\n' or '\r') continue;
+                                            if (pData[i] is '=') goto case '=';
                                             break;
                                         }
 
                                         ctx.PushArrayValue(value);
-                                        Log(value, LCDocType.ArrayValueOnly);
                                         start = i;
                                         goto Head;
                                     }
@@ -145,8 +143,8 @@ namespace Re.LC
 
                             while (++i < length)
                             {
-                                if (data[i] is '\t' or ' ' or '\n' or '\r') continue;
-                                if (data[i] is '=') goto case '=';
+                                if (pData[i] is '\t' or ' ' or '\n' or '\r') continue;
+                                if (pData[i] is '=') goto case '=';
                                 break;
                             }
                             start = i;
@@ -164,7 +162,6 @@ namespace Re.LC
                                     {
                                         ctx.hasKey = false;
                                         ctx.PushKeyValue(value);
-                                        Log(value, LCDocType.Value);
                                     }
                                     else
                                     {
@@ -190,7 +187,6 @@ namespace Re.LC
                         else
                         {
                             ctx.PushKey();
-                            Log(key, ctx.isArray ? LCDocType.ArrayKey : LCDocType.Key);
                         }
                         start = ++i;
                         goto Head;
@@ -217,8 +213,6 @@ namespace Re.LC
                             //TODO: For Now, Only Support Multiple-Line Array
                             ctx.isMultipleLineArray = true;
                             ctx.PushArrayWithKey();
-
-                            Log(DbgState.Begin_Array);
                         }
                         else if (ctx.isArray)
                         {
@@ -236,24 +230,15 @@ namespace Re.LC
                         if (ctx.isSection)
                         {
                             ctx.isSection = false;
-                            if (kvLList.Count > 0)
-                            {
-                                sectionLList.AddAfter(new LCSection(sectionName, kvLList.ToSpan()));
-                                sectionName.Clear();
-                                kvLList.Clear();
-                            }
-                            sectionName = data[start..i].Trim(); //NOTE: Section name can be empty
-
-                            Log(sectionName, LCDocType.Section);
+                            ctx.FlushSectionBuffer();
+                            ctx.PushSection();
 
                             while (++i < length)
                             {
-                                if (data[i] is ' ' or '\t' or '\r')
+                                if (pData[i] is ' ' or '\t' or '\r')
                                     continue;
-                                if (data[i] == '\n')
+                                if (pData[i] == '\n')
                                     break;
-
-                                LCSyntaxError($"Cannot has char `{data[i]}`");
                             }
 
                             if (i >= length)
@@ -307,7 +292,7 @@ namespace Re.LC
                                 if (data[index] == '}') goto case '}';
 
                                 i = index++;
-                                // LogSyntaxError($"Cannot has char `{data[i]}`");
+                                // LogSyntaxError($"Cannot has char `{pData[i]}`");
                             }
                             start = i;
                         }
@@ -371,6 +356,8 @@ namespace Re.LC
         public Action? OnLCParserStart;
         public Action? OnLCParserEOF;
 
+        public static Span<char> TopSection => new Span<char>();
+
         public LCParserContext(NativeLinkedList<LCSection> sectionLList,
                                NativeLinkedList<LCValue> kvLList,
                                Span<char> sectionName,
@@ -404,13 +391,15 @@ namespace Re.LC
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void PushKey()
         {
-            this.key = data[start..index].Trim();
+            PushKey(data[start..index].Trim());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void PushKey(Span<char> key)
         {
             this.key = key;
+
+            Log(key, isArray ? LCDocType.ArrayKey : LCDocType.Key);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -430,6 +419,8 @@ namespace Re.LC
 
             kvLList.AddAfter(new LCValue(key, value));
             this.key = default;
+
+            Log(value, LCDocType.Value);
         }
 
         // TODO: 支持多重嵌套数组、内联数组
@@ -454,6 +445,8 @@ namespace Re.LC
                 kvLList.AddAfter(new LCValue(key));
                 key = default;
             }
+
+            Log(DbgState.Begin_Array);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -473,6 +466,8 @@ namespace Re.LC
         {
             arr.AddAfter(new LCValue(Span<char>.Empty, value));
             key = default;
+
+            Log(value, LCDocType.ArrayValueOnly);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -494,6 +489,29 @@ namespace Re.LC
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EndOfInlineArray()
         {
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PushSection()
+        {
+            sectionName = data[start..index].Trim(); //NOTE: Section name can be empty
+
+            Log(sectionName, LCDocType.Section);
+        }
+
+        /// <summary>
+        /// A buffer flush is the transfer of section data from
+        /// a linked list to the last section.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void FlushSectionBuffer()
+        {
+            if (kvLList.Count > 0)
+            {
+                sectionLList.AddAfter(new LCSection(sectionName, kvLList.ToSpan()));
+                sectionName.Clear();
+                kvLList.Clear();
+            }
         }
     }
 
