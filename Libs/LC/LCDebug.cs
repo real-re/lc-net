@@ -103,7 +103,7 @@ namespace Re.LC
             throw new SyntaxErrorException($"[ERROR] {value} Type: {type}");
         }
 
-        internal static void LogSyntaxError(string? value)
+        internal static void LCSyntaxError(string? value)
         {
             Console.ForegroundColor = ConsoleColor.DarkRed;
             var frame = new StackTrace(1, true).GetFrame(0);

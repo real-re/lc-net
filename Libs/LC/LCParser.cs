@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Specialized;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -75,18 +76,18 @@ namespace Re.LC
             if (isTrimed)
                 data = data.Trim();
 
-            #region Main Loop
-
             LCParserContext ctx = new();
+            ctx.data = data;
 
-            NativeLinkedList<LCSection> sectionLList = new();
-            NativeLinkedList<LCValue> kvLList = new(); // Items list of section
+            ref NativeLinkedList<LCSection> sectionLList = ref ctx.sectionLList;
+            ref NativeLinkedList<LCValue> kvLList = ref ctx.kvLList; // Items list of section
 
-            Span<char> sectionName = default;
-            Span<char> key = default;
-            NativeLinkedList<LCValue> arr = default;
+            ref Span<char> sectionName = ref ctx.sectionName;
+            ref Span<char> key = ref ctx.key;
+            ref NativeLinkedList<LCValue> arr = ref ctx.arr;
 
-            int start = 0; // Block start position
+            ref int i = ref ctx.index;
+            ref int start = ref ctx.start; // Block start position
             int inlineDepth = 0; // Inline array counter
             bool hasEOF = data[^1] is '\n' or ' ' or '\t' or '\r' or '\0';
             int length = hasEOF ? data.Length : data.Length + 1;
@@ -96,7 +97,7 @@ namespace Re.LC
                 pData = ptr;
 
             ctx.OnLCParserStart?.Invoke();
-            for (int i = 0; i < length; i++)
+            for (i = 0; i < length; i++)
             {
             Head:
                 switch (pData[i])
@@ -121,8 +122,7 @@ namespace Re.LC
                                     if (ctx.hasKey)
                                     {
                                         ctx.hasKey = false;
-                                        AddArrayItem(ref arr, new LCValue(key, value));
-                                        key = default;
+                                        ctx.PushArrayItem(new LCValue(key, value));
                                         Log(value, LCDocType.ArrayValue);
                                     }
                                     else
@@ -135,7 +135,7 @@ namespace Re.LC
                                             break;
                                         }
 
-                                        AddArrayItem(ref arr, new LCValue(default, value));
+                                        ctx.PushArrayValue(value);
                                         Log(value, LCDocType.ArrayValueOnly);
                                         start = i;
                                         goto Head;
@@ -163,12 +163,12 @@ namespace Re.LC
                                     if (ctx.hasKey)
                                     {
                                         ctx.hasKey = false;
-                                        AddKeyValue(ref key, value);
+                                        ctx.PushKeyValue(value);
                                         Log(value, LCDocType.Value);
                                     }
                                     else
                                     {
-                                        LogSyntaxError($"ValueOnly [ {value.ToString()} ]");
+                                        LCSyntaxError($"ValueOnly [ {value.ToString()} ]");
                                     }
                                 }
                             }
@@ -180,16 +180,16 @@ namespace Re.LC
                         ctx.isValue = true;
                         ctx.hasKey = true;
                         if (start == i)
-                            LogSyntaxError("Not found key");
+                            LCSyntaxError("Not found key");
 
                         // Add Key
                         if (!key.IsEmpty)
                         {
-                            LogSyntaxError($"Find tow key [{key.ToString()}] [{data[start..i].Trim().ToString()}]");
+                            LCSyntaxError($"Find tow key [{key.ToString()}] [{data[start..i].Trim().ToString()}]");
                         }
                         else
                         {
-                            key = data[start..i].Trim();
+                            ctx.PushKey();
                             Log(key, ctx.isArray ? LCDocType.ArrayKey : LCDocType.Key);
                         }
                         start = ++i;
@@ -216,7 +216,7 @@ namespace Re.LC
                             ctx.hasKey = false;
                             //TODO: For Now, Only Support Multiple-Line Array
                             ctx.isMultipleLineArray = true;
-                            AddArray(ref arr, ref key);
+                            ctx.PushArrayWithKey();
 
                             Log(DbgState.Begin_Array);
                         }
@@ -253,7 +253,7 @@ namespace Re.LC
                                 if (data[i] == '\n')
                                     break;
 
-                                LogSyntaxError($"Cannot has char `{data[i]}`");
+                                LCSyntaxError($"Cannot has char `{data[i]}`");
                             }
 
                             if (i >= length)
@@ -278,7 +278,7 @@ namespace Re.LC
                             if (ctx.isMultipleLineArray)
                             {
                                 ctx.isMultipleLineArray = false;
-                                EndOfArray(ref arr);
+                                ctx.EndOfArray();
                             }
                             if (ctx.inlineArray)
                             {
@@ -338,70 +338,15 @@ namespace Re.LC
             arr.Dispose();
 
             return result;
-
-            #endregion
-
-            #region Utilities
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            void AddKeyValue(ref Span<char> key, Span<char> value)
-            {
-                if (key.IsEmpty)
-                {
-                    LogError("Empty key", LCDocType.Key);
-                    return;
-                }
-
-                kvLList.AddAfter(new LCValue(key, value));
-                key = default;
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            void AddArray(ref NativeLinkedList<LCValue> arr, ref Span<char> key)
-            {
-                if (!arr.IsEmpty)
-                {
-                    LogSyntaxError("Found not empty array before Key-Array");
-                }
-
-                if (key.IsEmpty) // Inline array
-                {
-                }
-                else
-                {
-                    kvLList.AddAfter(new LCValue(key));
-                    key = default;
-                }
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            void AddArrayItem(ref NativeLinkedList<LCValue> arr, LCValue item)
-            {
-                arr.AddAfter(item);
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            void EndOfArray(ref NativeLinkedList<LCValue> arr)
-            {
-                var arrItem = kvLList.Peek();
-                if (arrItem.Key is null)
-                {
-                    LogSyntaxError("Found null array key");
-                }
-
-                arrItem.SetValue(arr.ToSpan());
-                kvLList.SetValue(kvLList.Count - 1, arrItem);
-                arr = default;
-
-                Log(DbgState.End_Array);
-            }
-
-            #endregion
         }
     }
 
     internal ref struct LCParserContext
     {
+        public int index;
+        public int start;
+        public Span<char> data;
+
         // Section
         public bool isSection;
         // Key
@@ -415,8 +360,141 @@ namespace Re.LC
         // Map Value
         public bool isMap;
 
+        public NativeLinkedList<LCSection> sectionLList;
+        public NativeLinkedList<LCValue> kvLList; // Items list of section
+
+        public Span<char> sectionName;
+        public Span<char> key;
+
+        public NativeLinkedList<LCValue> arr;
+
         public Action? OnLCParserStart;
         public Action? OnLCParserEOF;
+
+        public LCParserContext(NativeLinkedList<LCSection> sectionLList,
+                               NativeLinkedList<LCValue> kvLList,
+                               Span<char> sectionName,
+                               Span<char> key,
+                               NativeLinkedList<LCValue> arr,
+                               Action? onLCParserStart = null,
+                               Action? onLCParserEOF = null)
+        {
+            this.index = 0;
+            this.start = 0;
+            this.data = default;
+
+            this.isSection = false;
+            this.hasKey = false;
+            this.isValue = false;
+            this.inlineArray = false;
+            this.isArray = false;
+            this.isMultipleLineArray = false;
+            this.isMap = false;
+
+            this.sectionLList = sectionLList;
+            this.kvLList = kvLList;
+            this.sectionName = sectionName;
+            this.key = key;
+            this.arr = arr;
+
+            this.OnLCParserStart = onLCParserStart;
+            this.OnLCParserEOF = onLCParserEOF;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PushKey()
+        {
+            this.key = data[start..index].Trim();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PushKey(Span<char> key)
+        {
+            this.key = key;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PushKeyValue(Span<char> value)
+        {
+            PushKeyValue(this.key, value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PushKeyValue(Span<char> key, Span<char> value)
+        {
+            if (key.IsEmpty)
+            {
+                LogError("Empty key", LCDocType.Key);
+                return;
+            }
+
+            kvLList.AddAfter(new LCValue(key, value));
+            this.key = default;
+        }
+
+        // TODO: 支持多重嵌套数组、内联数组
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PushArrayWithKey()
+        {
+            if (!arr.IsEmpty)
+            {
+                LCSyntaxError("Found not empty array before Key-Array");
+            }
+
+            if (key.IsEmpty) // Inline array
+            {
+                // if parent node is Array and has key then matched Inline Array
+                //     PushInlineArray();
+                // else
+                //     throw "Not found key of array"
+                //           "Not match inline array" 
+            }
+            else
+            {
+                kvLList.AddAfter(new LCValue(key));
+                key = default;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PushInlineArray()
+        {
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PushArrayItem(LCValue item)
+        {
+            arr.AddAfter(item);
+            key = default;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PushArrayValue(Span<char> value)
+        {
+            arr.AddAfter(new LCValue(Span<char>.Empty, value));
+            key = default;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EndOfArray()
+        {
+            var arrItem = kvLList.Peek();
+            if (arrItem.Key is null)
+            {
+                LCSyntaxError("Found null array key");
+            }
+
+            arrItem.SetValue(arr.ToSpan());
+            kvLList.SetValue(kvLList.Count - 1, arrItem);
+            arr = default;
+
+            Log(DbgState.End_Array);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EndOfInlineArray()
+        {
+        }
     }
 
     public unsafe ref struct LCData
@@ -449,7 +527,10 @@ namespace Re.LC
             return builder.ToString();
         }
 
-        public Span<LCSection>.Enumerator GetEnumerator() => new Span<LCSection>.Enumerator();
+        public Span<LCSection>.Enumerator GetEnumerator()
+        {
+            return Sections.GetEnumerator();
+        }
     }
 }
 #nullable disable
