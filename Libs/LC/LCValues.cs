@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -8,11 +7,11 @@ namespace Re.LC
 {
     public unsafe struct LCSection
     {
-        public string? Name => new string(key, 0, nameLength);
+        public string? Name => (name == null || nameLength <= 0) ? null : new string(name, 0, nameLength);
         public int Count => length;
         public bool IsEmpty => length == 0 && values is null;
 
-        private char* key;
+        private char* name;
         private int nameLength;
         private LCValue* values;
         private int length;
@@ -40,12 +39,13 @@ namespace Re.LC
             if (!name.IsEmpty)
             {
                 fixed (char* ptr = &name.GetPinnableReference())
-                    this.key = ptr;
+                    this.name = ptr;
             }
             else
             {
-                this.key = null;
+                this.name = null;
             }
+
             if (!kv.IsEmpty)
             {
                 fixed (LCValue* ptr = &kv.GetPinnableReference())
@@ -55,6 +55,7 @@ namespace Re.LC
             {
                 this.values = null;
             }
+
             this.nameLength = name.Length;
             this.length = kv.Length;
         }
@@ -320,6 +321,7 @@ namespace Re.LC
                 LCValueType.Double => left.ReadValue<double>() == right.ReadValue<double>(),
                 LCValueType.Decimal => left.ReadValue<decimal>() == right.ReadValue<decimal>(),
                 // LCValueType.Enum => left.ReadValue<Enum> == right.ReadValue<Enum>(),
+                // TODO: Use strcmp insted of create a string object
                 LCValueType.String => left.ReadString() == right.ReadString(),
                 LCValueType.LCArray => left.ReadArray() == right.ReadArray(),
                 // LCValueType.LCMap => left.ReadValue<LCMap> == right.ReadValue<LCMap>(),

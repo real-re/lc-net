@@ -8,7 +8,7 @@ public static class LCParserTest
     public static void Run()
     {
         // Parse("Config/Sample.lc");
-        // Parse("Config/Example.lc");
+        Parse("Config/Example.lc");
         Test_LC_Parser(
             @"# Test LC Document
 [Section One]
@@ -19,6 +19,7 @@ Key = Value
                 new("Key", "Value"),
             }),
         }));
+        LCParser.Parse("[Section One] [Section Two] name = Naruto [Section Three]");
     }
 
     private static void Parse(string path)

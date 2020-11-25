@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -22,12 +21,12 @@ namespace Re.LC
             // throw new FileNotFoundException(filePath);
             if (!File.Exists(filePath))
             {
-                Debug.WriteLine($"File {filePath} not found!");
+                Console.WriteLine($"File {filePath} not found!");
                 return LC.Empty;
             }
 
             using var stream = File.OpenText(filePath);
-            Span<char> buffer = new char[(int)stream.BaseStream.Length];
+            Span<char> buffer = new char[stream.BaseStream.Length];
             stream.ReadBlock(buffer);
 
             if (buffer.IsEmpty)
@@ -39,6 +38,7 @@ namespace Re.LC
             return Parse(buffer, filePath);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static LC Parse(string str)
         {
             if (string.IsNullOrEmpty(str))
@@ -48,6 +48,7 @@ namespace Re.LC
                 return Parse(new Span<char>(ptr, str.Length));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static LC Parse(char[] lc)
         {
             if (lc is null || lc.Length == 0)
@@ -57,6 +58,7 @@ namespace Re.LC
                 return Parse(new Span<char>(ptr, lc.Length));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static LC Parse(byte[] lc)
         {
             if (lc is null || lc.Length == 0)
@@ -232,22 +234,8 @@ namespace Re.LC
                             ctx.isSection = false;
                             ctx.FlushSectionBuffer();
                             ctx.PushSection();
-
-                            while (++i < length)
-                            {
-                                if (pData[i] is ' ' or '\t' or '\r')
-                                    continue;
-                                if (pData[i] == '\n')
-                                    break;
-                            }
-
-                            if (i >= length)
-                                goto End;
-
-                            start = i;
-                            break;
                         }
-                        if (ctx.isArray)
+                        else if (ctx.isArray)
                         {
                             if (ctx.isValue)
                             {
@@ -281,29 +269,11 @@ namespace Re.LC
                                 ctx.isArray = false;
                             }
                         }
-                        {
-                            int index = i + 1;
-                            while (index < length)
-                            {
-                                if (data[index] is not '\n' or ' ' or '\t' or '\r') break;
-                                if (data[index] == '[') goto case '[';
-                                if (data[index] == ']') goto case ']';
-                                if (data[index] == '{') goto case '{';
-                                if (data[index] == '}') goto case '}';
 
-                                i = index++;
-                                // LogSyntaxError($"Cannot has char `{pData[i]}`");
-                            }
-                            start = i;
-                        }
-                        // if (ctx.isNewSection)
-                        //     ctx.isNewSection = false;
-                        // else
-                        //     ctx.isEndOfArray = true;
-                        break;
+                        start = ++i;
+                        goto Head;
                 }
             }
-        End:
             ctx.OnLCParserEOF?.Invoke();
             // EOF: '\n', ' ', '\t', '\r', '\0'
 

@@ -2,41 +2,46 @@ using System;
 // Test Program
 // TestUtilities.RunAllTests();
 
-// LCParserTest.Run();
-using Re.LC;
+LCParserTest.Run();
 
-if (args.Length == 0)
-{
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("args[0] is LC string");
-    Console.ForegroundColor = ConsoleColor.Gray;
-    return;
-}
+//
+// Console Program
+//
 
-goto DisplayInfo;
+// using Re.LC;
 
-Begin:
-string input = args[0];
-// Console.WriteLine($"Got input -> {input}");
-LC lc = LCParser.Parse(input);
-goto End;
+// ConsoleColor foregroundColor = Console.ForegroundColor;
 
-DisplayInfo:
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine();
-Console.WriteLine("---------------------");
-Console.WriteLine("Parse LC...");
-Console.WriteLine("---------------------");
-Console.WriteLine();
-goto Begin;
+// if (args.Length == 0)
+// {
+//     Console.ForegroundColor = ConsoleColor.Red;
+//     Console.WriteLine("Invalid argument not found LC string");
+//     Console.ForegroundColor = foregroundColor;
+//     return;
+// }
 
-End:
-Console.ForegroundColor = ConsoleColor.DarkGreen;
-Console.WriteLine();
-Console.WriteLine("---------------------");
-Console.WriteLine("Print result...");
-Console.WriteLine("---------------------");
-Console.WriteLine();
-Console.WriteLine(lc.ToString());
+// DisplayInfo();
 
-Console.ForegroundColor = ConsoleColor.Gray;
+// string input = args[0];
+// // Console.WriteLine($"Got input -> {input}");
+// LC lc = LCParser.Parse(input);
+// // Print result
+// Console.ForegroundColor = ConsoleColor.Blue;
+// Console.WriteLine();
+// Console.WriteLine("---------------------");
+// Console.WriteLine("Print result...");
+// Console.WriteLine("---------------------");
+// Console.WriteLine();
+// Console.WriteLine(lc.ToString());
+// // Reset console foreground color
+// Console.ForegroundColor = foregroundColor;
+
+// void DisplayInfo()
+// {
+//     Console.ForegroundColor = ConsoleColor.Yellow;
+//     Console.WriteLine();
+//     Console.WriteLine("---------------------");
+//     Console.WriteLine("Parsing LC...");
+//     Console.WriteLine("---------------------");
+//     Console.WriteLine();
+// }
