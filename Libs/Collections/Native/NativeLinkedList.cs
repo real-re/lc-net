@@ -17,6 +17,7 @@ namespace Re.Collections.Native
         private int _count;
         private bool _disposed;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public NativeLinkedList(T value)
         {
             Node* ptr = (Node*)Marshal.AllocHGlobal(sizeof(Node));
@@ -27,6 +28,7 @@ namespace Re.Collections.Native
             _disposed = false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddAfter(T value)
         {
             if (_count > 0)
@@ -54,6 +56,7 @@ namespace Re.Collections.Native
             _count++;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddBefore(T value)
         {
             Node* newHead = (Node*)Marshal.AllocHGlobal(sizeof(Node));
@@ -66,6 +69,7 @@ namespace Re.Collections.Native
             _count++;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
             if (_count > 0 && _head != null && !_disposed)
@@ -86,6 +90,7 @@ namespace Re.Collections.Native
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Peek()
         {
             if (_tail == null)
@@ -94,6 +99,7 @@ namespace Re.Collections.Native
             return _tail->Value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Pop()
         {
             if (_count == 0)
@@ -120,9 +126,6 @@ namespace Re.Collections.Native
             {
                 _head->Value = default;
                 // Console.WriteLine($"Free -> {tail->Value}");
-                // 不会清除头部节点，用于下次分配复用
-                // Marshal.FreeHGlobal(tail);
-                // TODO: 缓存空节点的内存 Clear() -> 保留内置最低节点长度的内存
             }
 
             _count--;
@@ -137,6 +140,9 @@ namespace Re.Collections.Native
 
             if (_head == null)
                 return;
+
+            // TODO: 优化 根据索引与总数比较，选择从头部遍历，还是尾部更快
+            // bool fromHead = index > (_count / 2);
 
             if (index == _count - 1)
             {
@@ -157,11 +163,9 @@ namespace Re.Collections.Native
             node->Value = value;
         }
 
-        public Enumerator GetEnumerator()
-        {
-            return new Enumerator(_head, _count);
-        }
+        public Enumerator GetEnumerator() => new Enumerator(_head, _count);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> ToSpan()
         {
             if (_count > 0 && _head != null && !_disposed)
@@ -218,12 +222,14 @@ namespace Re.Collections.Native
             public T Value;
             public Node* Next;
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Node(T value)
             {
                 Value = value;
                 Next = null;
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Node(T value, Node* next)
             {
                 Value = value;

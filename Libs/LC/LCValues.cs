@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Re.LC
@@ -114,19 +115,31 @@ namespace Re.LC
     /// <summary>
     /// Could inclued key-value, key-only or value-only
     /// </summary>
+    [StructLayout(LayoutKind.Explicit)]
     public unsafe struct LCValue : ILCValue, IEquatable<LCValue>
     {
         public string? Key => new string(key, 0, keyLength);
         public LCValueType Type => type;
 
+        [FieldOffset(0)]
         private char* key;
+        [FieldOffset(8)]
         private int keyLength;
-        private void* value;
+        [FieldOffset(12)]
         private int valueLength;
         /// <summary>
         /// Value type
         /// </summary>
+        [FieldOffset(16)]
         private LCValueType type;
+        // Union
+        // NOTE：联合体始终比最大的结构体大，所以用大范围数据取缔小范围即可
+        [FieldOffset(17)] private bool boolVal;
+        [FieldOffset(17)] private long longVal;
+        [FieldOffset(17)] private ulong ulongVal;
+        [FieldOffset(17)] private double doubleVal;
+        // [FieldOffset(17)] private decimal decimalVal;
+        [FieldOffset(17)] private void* value;
 
         #region Key-Value
 
@@ -136,14 +149,23 @@ namespace Re.LC
         {
             this.key = key;
             this.keyLength = length;
-            this.value = value;
+            {
+                this.boolVal = default;
+                this.longVal = default;
+                this.ulongVal = default;
+                this.doubleVal = default;
+                this.value = value;
+            }
             this.valueLength = valueLength;
             this.type = type;
         }
 
         public LCValue(Span<char> key) : this(key, null, 0, LCValueType.Unknown) { }
+        public LCValue(Span<char> key, LCValueType type) : this(key, null, 0, type) { }
         public LCValue(Span<char> key, Span<char> value) : this(key.ToPointer(), key.Length, value.ToPointer(), value.Length, LCValueType.String) { }
         public LCValue(Span<char> key, void* value, int length, LCValueType type) : this(key.ToPointer(), key.Length, value, length, type) { }
+        public LCValue(ReadOnlySpan<char> key) : this(key, null, 0, LCValueType.Unknown) { }
+        public LCValue(ReadOnlySpan<char> key, LCValueType type) : this(key, null, 0, type) { }
         public LCValue(ReadOnlySpan<char> key, ReadOnlySpan<char> value) : this(key, value.ToPointer(), value.Length, LCValueType.String) { }
         public LCValue(ReadOnlySpan<char> key, void* value, int length, LCValueType type) : this(key.ToPointer(), key.Length, value, length, type) { }
         // public LCValue(ReadOnlySpan<char> key)
@@ -159,32 +181,33 @@ namespace Re.LC
         //     fixed (char* vPtr = &value.GetPinnableReference()) this.value = vPtr; this.valueLength = value.Length;
         //     this.type = LCValueType.String;
         // }
-        public LCValue(Span<char> key, bool value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Bool) { }
-        public LCValue(Span<char> key, char value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Char) { }
-        public LCValue(Span<char> key, byte value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Byte) { }
-        public LCValue(Span<char> key, sbyte value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.SByte) { }
-        public LCValue(Span<char> key, short value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Int16) { }
-        public LCValue(Span<char> key, ushort value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.UInt16) { }
-        public LCValue(Span<char> key, int value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Int) { }
-        public LCValue(Span<char> key, uint value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.UInt) { }
-        public LCValue(Span<char> key, long value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Int64) { }
-        public LCValue(Span<char> key, ulong value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.UInt64) { }
-        public LCValue(Span<char> key, float value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Float) { }
-        public LCValue(Span<char> key, double value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Double) { }
-        public LCValue(Span<char> key, decimal value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Decimal) { }
-        public LCValue(ReadOnlySpan<char> key, bool value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Bool) { }
-        public LCValue(ReadOnlySpan<char> key, char value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Char) { }
-        public LCValue(ReadOnlySpan<char> key, byte value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Byte) { }
-        public LCValue(ReadOnlySpan<char> key, sbyte value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.SByte) { }
-        public LCValue(ReadOnlySpan<char> key, short value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Int16) { }
-        public LCValue(ReadOnlySpan<char> key, ushort value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.UInt16) { }
-        public LCValue(ReadOnlySpan<char> key, int value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Int) { }
-        public LCValue(ReadOnlySpan<char> key, uint value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.UInt) { }
-        public LCValue(ReadOnlySpan<char> key, long value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Int64) { }
-        public LCValue(ReadOnlySpan<char> key, ulong value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.UInt64) { }
-        public LCValue(ReadOnlySpan<char> key, float value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Float) { }
-        public LCValue(ReadOnlySpan<char> key, double value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Double) { }
-        public LCValue(ReadOnlySpan<char> key, decimal value) : this(key, Unsafe.AsPointer(ref value), 1, LCValueType.Decimal) { }
+        // TODO: union type
+        public LCValue(Span<char> key, bool value) : this(key, LCValueType.Bool) { this.boolVal = value; }
+        public LCValue(Span<char> key, char value) : this(key, LCValueType.Char) { this.longVal = value; }
+        public LCValue(Span<char> key, byte value) : this(key, LCValueType.Byte) { this.ulongVal = value; }
+        public LCValue(Span<char> key, sbyte value) : this(key, LCValueType.SByte) { this.longVal = value; }
+        public LCValue(Span<char> key, short value) : this(key, LCValueType.Int16) { this.longVal = value; }
+        public LCValue(Span<char> key, ushort value) : this(key, LCValueType.UInt16) { this.ulongVal = value; }
+        public LCValue(Span<char> key, int value) : this(key, LCValueType.Int) { this.longVal = value; }
+        public LCValue(Span<char> key, uint value) : this(key, LCValueType.UInt) { this.ulongVal = value; }
+        public LCValue(Span<char> key, long value) : this(key, LCValueType.Int64) { this.longVal = value; }
+        public LCValue(Span<char> key, ulong value) : this(key, LCValueType.UInt64) { this.ulongVal = value; }
+        public LCValue(Span<char> key, float value) : this(key, LCValueType.Float) { this.doubleVal = value; }
+        public LCValue(Span<char> key, double value) : this(key, LCValueType.Double) { this.doubleVal = value; }
+        // public LCValue(Span<char> key, decimal value) : this(key, LCValueType.Decimal) { this.decimalVal = value; }
+        public LCValue(ReadOnlySpan<char> key, bool value) : this(key, LCValueType.Bool) { this.boolVal = value; }
+        public LCValue(ReadOnlySpan<char> key, char value) : this(key, LCValueType.Char) { this.longVal = value; }
+        public LCValue(ReadOnlySpan<char> key, byte value) : this(key, LCValueType.Byte) { this.ulongVal = value; }
+        public LCValue(ReadOnlySpan<char> key, sbyte value) : this(key, LCValueType.SByte) { this.longVal = value; }
+        public LCValue(ReadOnlySpan<char> key, short value) : this(key, LCValueType.Int16) { this.longVal = value; }
+        public LCValue(ReadOnlySpan<char> key, ushort value) : this(key, LCValueType.UInt16) { this.ulongVal = value; }
+        public LCValue(ReadOnlySpan<char> key, int value) : this(key, LCValueType.Int) { this.longVal = value; }
+        public LCValue(ReadOnlySpan<char> key, uint value) : this(key, LCValueType.UInt) { this.ulongVal = value; }
+        public LCValue(ReadOnlySpan<char> key, long value) : this(key, LCValueType.Int64) { this.longVal = value; }
+        public LCValue(ReadOnlySpan<char> key, ulong value) : this(key, LCValueType.UInt64) { this.ulongVal = value; }
+        public LCValue(ReadOnlySpan<char> key, float value) : this(key, LCValueType.Float) { this.doubleVal = value; }
+        public LCValue(ReadOnlySpan<char> key, double value) : this(key, LCValueType.Double) { this.doubleVal = value; }
+        // public LCValue(ReadOnlySpan<char> key, decimal value) : this(key, LCValueType.Decimal) { this.decimalVal = value; }
 
         // public LCValue(ReadOnlySpan<char> key, LCArray value)
         // {
@@ -201,33 +224,276 @@ namespace Re.LC
 
         #endregion
 
-        #region Value-Only
-
-        // public LCValue(ReadOnlySpan<char> value, LCValueType type) { this.key = null; this.value = value; this.type = type; }
-        // // LC Value Type
-        // public LCValue(LCArray value) { this.key = null; this.value = &value; this.type = LCValueType.LCArray; }
-        // public LCValue(LCMap value) { this.key = null; this.value = &value; this.type = LCValueType.LCMap; }
-
-        #endregion
-
         #region Read Value Methods
 
-        public T ReadValue<T>() where T : unmanaged => *(T*)value;
+        // TODO: 针对各个类型单独实现（参考c++ vector）
 
-        // public bool ReadBool() => *(bool*)value;
-        // public char ReadChar() => *(char*)value;
-        // public byte ReadByte() => *(byte*)value;
-        // public sbyte ReadSByte() => *(sbyte*)value;
-        // public short ReadInt16() => *(short*)value;
-        // public ushort ReadUInt16() => *(ushort*)value;
-        // public int ReadInt() => *(int*)value;
-        // public uint ReadUInt() => *(uint*)value;
-        // public long ReadInt64() => *(long*)value;
-        // public ulong ReadUInt64() => *(ulong*)value;
-        // public float ReadFloat() => *(float*)value;
-        // public double ReadDouble() => *(double*)value;
+        public bool ReadBool() => type switch
+        {
+            LCValueType.Bool => boolVal,
+            LCValueType.Char => longVal > 1,
+            LCValueType.Byte => ulongVal > 1,
+            LCValueType.SByte => ulongVal > 1,
+            LCValueType.Int16 => longVal > 1,
+            LCValueType.UInt16 => ulongVal > 1,
+            LCValueType.Int => longVal > 1,
+            LCValueType.UInt => ulongVal > 1,
+            LCValueType.Int64 => longVal > 1,
+            LCValueType.UInt64 => ulongVal > 1,
+            LCValueType.Float => doubleVal > 1,
+            LCValueType.Double => doubleVal > 1,
+            LCValueType.Decimal => doubleVal > 1,
+            LCValueType.Enum => longVal > 1,
+            LCValueType.String => value != null && bool.TryParse(new ReadOnlySpan<char>(value, valueLength), out bool val) && val,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public char ReadChar() => type switch
+        {
+            LCValueType.Bool => char.MinValue,
+            LCValueType.Char => (char)ulongVal,
+            LCValueType.Byte => (char)longVal,
+            LCValueType.SByte => (char)longVal,
+            LCValueType.Int16 => (char)longVal,
+            LCValueType.UInt16 => (char)ulongVal,
+            LCValueType.Int => (char)longVal,
+            LCValueType.UInt => (char)ulongVal,
+            LCValueType.Int64 => (char)longVal,
+            LCValueType.UInt64 => (char)ulongVal,
+            LCValueType.Float => (char)doubleVal,
+            LCValueType.Double => (char)doubleVal,
+            LCValueType.Decimal => (char)doubleVal,
+            LCValueType.Enum => (char)longVal,
+            LCValueType.String => ((char*)value) == null ? default : char.TryParse(new string((char*)value, 0, valueLength), out char val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public byte ReadByte() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => (byte)ulongVal,
+            LCValueType.Byte => (byte)longVal,
+            LCValueType.SByte => (byte)longVal,
+            LCValueType.Int16 => (byte)longVal,
+            LCValueType.UInt16 => (byte)ulongVal,
+            LCValueType.Int => (byte)longVal,
+            LCValueType.UInt => (byte)ulongVal,
+            LCValueType.Int64 => (byte)longVal,
+            LCValueType.UInt64 => (byte)ulongVal,
+            LCValueType.Float => (byte)doubleVal,
+            LCValueType.Double => (byte)doubleVal,
+            LCValueType.Decimal => (byte)doubleVal,
+            LCValueType.Enum => (byte)longVal,
+            LCValueType.String => value == null ? default : byte.TryParse(new ReadOnlySpan<char>(value, valueLength), out byte val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public sbyte ReadSByte() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => (sbyte)ulongVal,
+            LCValueType.Byte => (sbyte)longVal,
+            LCValueType.SByte => (sbyte)longVal,
+            LCValueType.Int16 => (sbyte)longVal,
+            LCValueType.UInt16 => (sbyte)ulongVal,
+            LCValueType.Int => (sbyte)longVal,
+            LCValueType.UInt => (sbyte)ulongVal,
+            LCValueType.Int64 => (sbyte)longVal,
+            LCValueType.UInt64 => (sbyte)ulongVal,
+            LCValueType.Float => (sbyte)doubleVal,
+            LCValueType.Double => (sbyte)doubleVal,
+            LCValueType.Decimal => (sbyte)doubleVal,
+            LCValueType.Enum => (sbyte)longVal,
+            LCValueType.String => value == null ? default : sbyte.TryParse(new ReadOnlySpan<char>(value, valueLength), out sbyte val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public short ReadInt16() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => (short)ulongVal,
+            LCValueType.Byte => (short)longVal,
+            LCValueType.SByte => (short)longVal,
+            LCValueType.Int16 => (short)longVal,
+            LCValueType.UInt16 => (short)ulongVal,
+            LCValueType.Int => (short)longVal,
+            LCValueType.UInt => (short)ulongVal,
+            LCValueType.Int64 => (short)longVal,
+            LCValueType.UInt64 => (short)ulongVal,
+            LCValueType.Float => (short)doubleVal,
+            LCValueType.Double => (short)doubleVal,
+            LCValueType.Decimal => (short)doubleVal,
+            LCValueType.Enum => (short)longVal,
+            LCValueType.String => value == null ? default : short.TryParse(new ReadOnlySpan<char>(value, valueLength), out short val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public ushort ReadUInt16() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => (ushort)ulongVal,
+            LCValueType.Byte => (ushort)longVal,
+            LCValueType.SByte => (ushort)longVal,
+            LCValueType.Int16 => (ushort)longVal,
+            LCValueType.UInt16 => (ushort)ulongVal,
+            LCValueType.Int => (ushort)longVal,
+            LCValueType.UInt => (ushort)ulongVal,
+            LCValueType.Int64 => (ushort)longVal,
+            LCValueType.UInt64 => (ushort)ulongVal,
+            LCValueType.Float => (ushort)doubleVal,
+            LCValueType.Double => (ushort)doubleVal,
+            LCValueType.Decimal => (ushort)doubleVal,
+            LCValueType.Enum => (ushort)longVal,
+            LCValueType.String => value == null ? default : ushort.TryParse(new ReadOnlySpan<char>(value, valueLength), out ushort val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public int ReadInt() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => (int)ulongVal,
+            LCValueType.Byte => (int)longVal,
+            LCValueType.SByte => (int)longVal,
+            LCValueType.Int16 => (int)longVal,
+            LCValueType.UInt16 => (int)ulongVal,
+            LCValueType.Int => (int)longVal,
+            LCValueType.UInt => (int)ulongVal,
+            LCValueType.Int64 => (int)longVal,
+            LCValueType.UInt64 => (int)ulongVal,
+            LCValueType.Float => (int)doubleVal,
+            LCValueType.Double => (int)doubleVal,
+            LCValueType.Decimal => (int)doubleVal,
+            LCValueType.Enum => (int)longVal,
+            LCValueType.String => value == null ? default : int.TryParse(new ReadOnlySpan<char>(value, valueLength), out int val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public uint ReadUInt() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => (uint)ulongVal,
+            LCValueType.Byte => (uint)longVal,
+            LCValueType.SByte => (uint)longVal,
+            LCValueType.Int16 => (uint)longVal,
+            LCValueType.UInt16 => (uint)ulongVal,
+            LCValueType.Int => (uint)longVal,
+            LCValueType.UInt => (uint)ulongVal,
+            LCValueType.Int64 => (uint)longVal,
+            LCValueType.UInt64 => (uint)ulongVal,
+            LCValueType.Float => (uint)doubleVal,
+            LCValueType.Double => (uint)doubleVal,
+            LCValueType.Decimal => (uint)doubleVal,
+            LCValueType.Enum => (uint)longVal,
+            LCValueType.String => value == null ? default : uint.TryParse(new ReadOnlySpan<char>(value, valueLength), out uint val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public long ReadInt64() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => (long)ulongVal,
+            LCValueType.Byte => (long)ulongVal,
+            LCValueType.SByte => longVal,
+            LCValueType.Int16 => longVal,
+            LCValueType.UInt16 => (long)ulongVal,
+            LCValueType.Int => longVal,
+            LCValueType.UInt => (long)ulongVal,
+            LCValueType.Int64 => longVal,
+            LCValueType.UInt64 => (long)ulongVal,
+            LCValueType.Float => (long)doubleVal,
+            LCValueType.Double => (long)doubleVal,
+            LCValueType.Decimal => (long)doubleVal,
+            LCValueType.Enum => longVal,
+            LCValueType.String => value == null ? default : long.TryParse(new ReadOnlySpan<char>(value, valueLength), out long val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public ulong ReadUInt64() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => ulongVal,
+            LCValueType.Byte => ulongVal,
+            LCValueType.SByte => (ulong)longVal,
+            LCValueType.Int16 => (ulong)longVal,
+            LCValueType.UInt16 => ulongVal,
+            LCValueType.Int => (ulong)longVal,
+            LCValueType.UInt => ulongVal,
+            LCValueType.Int64 => (ulong)longVal,
+            LCValueType.UInt64 => ulongVal,
+            LCValueType.Float => (ulong)doubleVal,
+            LCValueType.Double => (ulong)doubleVal,
+            LCValueType.Decimal => (ulong)doubleVal,
+            LCValueType.Enum => (ulong)longVal,
+            LCValueType.String => value == null ? default : ulong.TryParse(new ReadOnlySpan<char>(value, valueLength), out ulong val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public float ReadFloat() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => ulongVal,
+            LCValueType.Byte => ulongVal,
+            LCValueType.SByte => longVal,
+            LCValueType.Int16 => longVal,
+            LCValueType.UInt16 => ulongVal,
+            LCValueType.Int => longVal,
+            LCValueType.UInt => ulongVal,
+            LCValueType.Int64 => longVal,
+            LCValueType.UInt64 => ulongVal,
+            LCValueType.Float => (float)doubleVal,
+            LCValueType.Double => (float)doubleVal,
+            LCValueType.Decimal => (float)doubleVal,
+            LCValueType.Enum => longVal,
+            LCValueType.String => value == null ? default : float.TryParse(new ReadOnlySpan<char>(value, valueLength), out float val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
+        public double ReadDouble() => type switch
+        {
+            LCValueType.Bool => boolVal ? 1 : 0,
+            LCValueType.Char => ulongVal,
+            LCValueType.Byte => ulongVal,
+            LCValueType.SByte => longVal,
+            LCValueType.Int16 => longVal,
+            LCValueType.UInt16 => ulongVal,
+            LCValueType.Int => longVal,
+            LCValueType.UInt => ulongVal,
+            LCValueType.Int64 => longVal,
+            LCValueType.UInt64 => ulongVal,
+            LCValueType.Float => doubleVal,
+            LCValueType.Double => doubleVal,
+            LCValueType.Decimal => doubleVal,
+            LCValueType.Enum => longVal,
+            LCValueType.String => value == null ? default : double.TryParse(new ReadOnlySpan<char>(value, valueLength), out double val) ? val : default,
+            LCValueType.LCArray => default,
+            LCValueType.LCMap => default,
+            LCValueType.Unknown => default,
+            _ => default,
+        };
         // public decimal ReadDecimal() => *(decimal*)value;
-        public string ReadString() => new string((char*)value, 0, valueLength);
+        public string ReadString() => value == null ? string.Empty : new string((char*)value, 0, valueLength);
         // LC Value Type
         public Span<LCValue> ReadArray() => (value != null && valueLength > 0) ? new Span<LCValue>(value, valueLength) : default;
         // public LCMap ReadMap() => *(LCMap*)value;
@@ -254,6 +520,20 @@ namespace Re.LC
             this.keyLength = key.Length;
         }
 
+        #region Set Value Methods
+
+        public void SetValue(bool value) => boolVal = value;
+        public void SetValue(char value) => ulongVal = value;
+        public void SetValue(byte value) => ulongVal = value;
+        public void SetValue(sbyte value) => longVal = value;
+        public void SetValue(short value) => longVal = value;
+        public void SetValue(ushort value) => ulongVal = value;
+        public void SetValue(int value) => longVal = value;
+        public void SetValue(uint value) => ulongVal = value;
+        public void SetValue(long value) => longVal = value;
+        public void SetValue(ulong value) => ulongVal = value;
+        public void SetValue(float value) => doubleVal = value;
+        public void SetValue(double value) => doubleVal = value;
         public void SetValue(Span<char> value) => SetValue(Unsafe.AsPointer(ref value.GetPinnableReference()), value.Length, LCValueType.String);
         public void SetValue(Span<LCValue> value) => SetValue(Unsafe.AsPointer(ref value.GetPinnableReference()), value.Length, LCValueType.LCArray);
 
@@ -264,6 +544,8 @@ namespace Re.LC
             this.type = type;
         }
 
+        #endregion
+
         public override string ToString()
         {
             StringBuilder builder = new();
@@ -273,25 +555,25 @@ namespace Re.LC
             {
                 LCValueType.Unknown => builder.Append(nameof(LCValueType.Unknown)),
                 // Value Type
-                LCValueType.Bool => builder.Append(ReadValue<bool>()),
-                LCValueType.Char => builder.Append(ReadValue<char>()),
-                LCValueType.Byte => builder.Append(ReadValue<byte>()),
-                LCValueType.SByte => builder.Append(ReadValue<sbyte>()),
-                LCValueType.Int16 => builder.Append(ReadValue<short>()),
-                LCValueType.UInt16 => builder.Append(ReadValue<ushort>()),
-                LCValueType.Int => builder.Append(ReadValue<int>()),
-                LCValueType.UInt => builder.Append(ReadValue<uint>()),
-                LCValueType.Int64 => builder.Append(ReadValue<long>()),
-                LCValueType.UInt64 => builder.Append(ReadValue<ulong>()),
-                LCValueType.Float => builder.Append(ReadValue<float>()),
-                LCValueType.Double => builder.Append(ReadValue<double>()),
-                LCValueType.Decimal => builder.Append(ReadValue<decimal>()),
+                LCValueType.Bool => builder.Append(ReadBool()),
+                LCValueType.Char => builder.Append(ReadChar()),
+                LCValueType.Byte => builder.Append(ReadByte()),
+                LCValueType.SByte => builder.Append(ReadSByte()),
+                LCValueType.Int16 => builder.Append(ReadInt16()),
+                LCValueType.UInt16 => builder.Append(ReadUInt16()),
+                LCValueType.Int => builder.Append(ReadInt()),
+                LCValueType.UInt => builder.Append(ReadUInt()),
+                LCValueType.Int64 => builder.Append(ReadInt64()),
+                LCValueType.UInt64 => builder.Append(ReadUInt64()),
+                LCValueType.Float => builder.Append(ReadFloat()),
+                LCValueType.Double => builder.Append(ReadDouble()),
+                // LCValueType.Decimal => builder.Append(ReadDecimal()),
                 LCValueType.Enum => builder.Append(nameof(LCValueType.Enum)),
                 // Reference Type (Will As Span<char>)
                 LCValueType.String => builder.Append(ReadString()),
                 // LC Value Type
                 LCValueType.LCArray => builder.Append(ReadArray().Join()),
-                LCValueType.LCMap => builder.Append(ReadValue<LCMap>().ToString()),
+                // LCValueType.LCMap => builder.Append(ReadValue<LCMap>().ToString()),
                 _ => builder.Append("[ Unknown Value Type ]"),
             }).AppendLine();
             return builder.ToString();
@@ -307,19 +589,19 @@ namespace Re.LC
             if (left.valueLength != right.valueLength) return false;
             return left.type switch
             {
-                LCValueType.Bool => left.ReadValue<bool>() == right.ReadValue<bool>(),
-                LCValueType.Char => left.ReadValue<char>() == right.ReadValue<char>(),
-                LCValueType.Byte => left.ReadValue<byte>() == right.ReadValue<byte>(),
-                LCValueType.SByte => left.ReadValue<sbyte>() == right.ReadValue<sbyte>(),
-                LCValueType.Int16 => left.ReadValue<short>() == right.ReadValue<short>(),
-                LCValueType.UInt16 => left.ReadValue<ushort>() == right.ReadValue<ushort>(),
-                LCValueType.Int => left.ReadValue<int>() == right.ReadValue<int>(),
-                LCValueType.UInt => left.ReadValue<uint>() == right.ReadValue<uint>(),
-                LCValueType.Int64 => left.ReadValue<long>() == right.ReadValue<long>(),
-                LCValueType.UInt64 => left.ReadValue<ulong>() == right.ReadValue<ulong>(),
-                LCValueType.Float => left.ReadValue<float>() == right.ReadValue<float>(),
-                LCValueType.Double => left.ReadValue<double>() == right.ReadValue<double>(),
-                LCValueType.Decimal => left.ReadValue<decimal>() == right.ReadValue<decimal>(),
+                LCValueType.Bool => left.ReadBool() == right.ReadBool(),
+                LCValueType.Char => left.ReadChar() == right.ReadChar(),
+                LCValueType.Byte => left.ReadByte() == right.ReadByte(),
+                LCValueType.SByte => left.ReadSByte() == right.ReadSByte(),
+                LCValueType.Int16 => left.ReadInt16() == right.ReadInt16(),
+                LCValueType.UInt16 => left.ReadUInt16() == right.ReadUInt16(),
+                LCValueType.Int => left.ReadInt() == right.ReadInt(),
+                LCValueType.UInt => left.ReadUInt() == right.ReadUInt(),
+                LCValueType.Int64 => left.ReadInt64() == right.ReadInt64(),
+                LCValueType.UInt64 => left.ReadUInt64() == right.ReadUInt64(),
+                LCValueType.Float => left.ReadFloat() == right.ReadFloat(),
+                LCValueType.Double => left.ReadDouble() == right.ReadDouble(),
+                // LCValueType.Decimal => left.ReadDecimal() == right.ReadDecimal(),
                 // LCValueType.Enum => left.ReadValue<Enum> == right.ReadValue<Enum>(),
                 // TODO: Use strcmp insted of create a string object
                 LCValueType.String => left.ReadString() == right.ReadString(),

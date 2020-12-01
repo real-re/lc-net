@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 
+// TODO: Use test framework insted of this
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class TestAttribute : Attribute { }
 

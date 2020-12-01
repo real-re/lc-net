@@ -6,8 +6,4 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="collections.pooled" Version="2.0.0-preview.27" />
-  </ItemGroup>
-
 </Project>

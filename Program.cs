@@ -2,46 +2,46 @@ using System;
 // Test Program
 // TestUtilities.RunAllTests();
 
-LCParserTest.Run();
+// LCParserTest.Run();
 
 //
 // Console Program
 //
 
-// using Re.LC;
+using Re.LC;
 
-// ConsoleColor foregroundColor = Console.ForegroundColor;
+ConsoleColor foregroundColor = Console.ForegroundColor;
 
-// if (args.Length == 0)
-// {
-//     Console.ForegroundColor = ConsoleColor.Red;
-//     Console.WriteLine("Invalid argument not found LC string");
-//     Console.ForegroundColor = foregroundColor;
-//     return;
-// }
+if (args.Length == 0)
+{
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine("Invalid argument not found LC string");
+    Console.ForegroundColor = foregroundColor;
+    return;
+}
 
-// DisplayInfo();
+DisplayInfo();
 
-// string input = args[0];
-// // Console.WriteLine($"Got input -> {input}");
-// LC lc = LCParser.Parse(input);
-// // Print result
-// Console.ForegroundColor = ConsoleColor.Blue;
-// Console.WriteLine();
-// Console.WriteLine("---------------------");
-// Console.WriteLine("Print result...");
-// Console.WriteLine("---------------------");
-// Console.WriteLine();
-// Console.WriteLine(lc.ToString());
-// // Reset console foreground color
-// Console.ForegroundColor = foregroundColor;
+string input = args[0];
+// Console.WriteLine($"Got input -> {input}");
+LC lc = LCParser.Parse(input);
+// Print result
+Console.ForegroundColor = ConsoleColor.Blue;
+Console.WriteLine();
+Console.WriteLine("---------------------");
+Console.WriteLine("Print result...");
+Console.WriteLine("---------------------");
+Console.WriteLine();
+Console.WriteLine(lc.ToString());
+// Reset console foreground color
+Console.ForegroundColor = foregroundColor;
 
-// void DisplayInfo()
-// {
-//     Console.ForegroundColor = ConsoleColor.Yellow;
-//     Console.WriteLine();
-//     Console.WriteLine("---------------------");
-//     Console.WriteLine("Parsing LC...");
-//     Console.WriteLine("---------------------");
-//     Console.WriteLine();
-// }
+void DisplayInfo()
+{
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine();
+    Console.WriteLine("---------------------");
+    Console.WriteLine("Parsing LC...");
+    Console.WriteLine("---------------------");
+    Console.WriteLine();
+}

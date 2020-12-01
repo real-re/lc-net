@@ -9,17 +9,30 @@ public static class LCParserTest
     {
         // Parse("Config/Sample.lc");
         Parse("Config/Example.lc");
+
         Test_LC_Parser(
             @"# Test LC Document
 [Section One]
 Key = Value
 ",
+            // Result
             new(stackalloc LCSection[] {
             new("Section One", stackalloc LCValue[] {
                 new("Key", "Value"),
             }),
         }));
-        LCParser.Parse("[Section One] [Section Two] name = Naruto [Section Three]");
+
+        Test_LC_Parser(
+            "[Section One] [Section Two] name = Naruto [Section Three]",
+            // Result
+            new(stackalloc LCSection[] {
+            new("Section One"),
+            new("Section Two",
+                stackalloc LCValue[] {
+                new("name", "Naruto")
+            }),
+            new("Section Three"),
+        }));
     }
 
     private static void Parse(string path)
@@ -70,7 +83,7 @@ Key = Value
         Console.WriteLine("[TEST SUCCEED]");
         return;
     End:
-        var frame = new StackTrace(1, true).GetFrame(0);
+        var frame = new StackTrace(1, true).GetFrame(0); // FIXME: Not working
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine($"Test case failed in Line {frame.GetFileLineNumber()}");
     }
