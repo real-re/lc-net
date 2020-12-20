@@ -11,6 +11,7 @@ namespace Re.LC
 {
     public unsafe static class LCParser
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static LC From(string? filePath)
         {
             if (string.IsNullOrEmpty(filePath))
@@ -98,7 +99,7 @@ namespace Re.LC
                 pData = ptr;
 
             ctx.OnLCParserStart?.Invoke();
-            for (i = 0; i < length; i++)
+            for (i = 0; i < length; i++) //TODO: [Optimize] Use while instead of for
             {
             Head:
                 switch (pData[i])
@@ -225,7 +226,6 @@ namespace Re.LC
                         {
                             ctx.isSection = true;
                         }
-
                         start = ++i;
                         goto Head;
                     case ']':
@@ -269,7 +269,6 @@ namespace Re.LC
                                 ctx.isArray = false;
                             }
                         }
-
                         start = ++i;
                         goto Head;
                 }
@@ -313,7 +312,7 @@ namespace Re.LC
         public bool isArray; // Multi-Line Array
         public bool isMultipleLineArray;
         // Map Value
-        public bool isMap;
+        public bool isMap; // TODO
 
         public NativeLinkedList<LCSection> sectionLList;
         public NativeLinkedList<LCValue> kvLList; // Items list of section
@@ -326,8 +325,9 @@ namespace Re.LC
         public Action? OnLCParserStart;
         public Action? OnLCParserEOF;
 
-        public static Span<char> TopSection => new Span<char>();
+        public static Span<char> TopSection => Span<char>.Empty;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public LCParserContext(NativeLinkedList<LCSection> sectionLList,
                                NativeLinkedList<LCValue> kvLList,
                                Span<char> sectionName,
@@ -408,7 +408,7 @@ namespace Re.LC
                 //     PushInlineArray();
                 // else
                 //     throw "Not found key of array"
-                //           "Not match inline array" 
+                //           "Not match inline array"
             }
             else
             {
@@ -492,8 +492,10 @@ namespace Re.LC
         public Span<LCSection> Sections { get; }
         public bool HasTopLevelSection { get; }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public LCData(Span<LCSection> sections) : this(Span<char>.Empty, null, sections) { }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public LCData(Span<char> name, string? path, Span<LCSection> sections)
         {
             this.Name = name;
