@@ -1,0 +1,9 @@
+# LC test case
+name = Simple Animation Config
+
+[Idle]
+frames = [
+    idle_01
+    idle_02
+    idle_03
+]

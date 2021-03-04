@@ -154,6 +154,20 @@ namespace Re.LC
                         }
                         else if (ctx.isValue)
                         {
+                            if (pData[i] is '\n' or '\0')
+                            {
+                                // [LC]
+                                // name = My Full Name
+                                // array = [ My Full
+                                //     Name
+                                // ]
+                                //
+                                // [Json]
+                                // {
+                                //   "name": "My Full Name",
+                                //   "array": [ "My", "Full", "Name" ]
+                                // }
+                            }
                             if (start != i) //NOTE: 防止右侧只有括号，而输出空值
                             {
                                 var value = data[start..i].Trim();
