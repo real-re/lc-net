@@ -2,6 +2,7 @@
 using System;
 using System.Data;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Re.LC
 {
@@ -97,19 +98,37 @@ namespace Re.LC
             Console.WriteLine(value.ToString());
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void LogError(string value, LCDocType type)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             throw new SyntaxErrorException($"[ERROR] {value} Type: {type}");
         }
 
+        [Conditional("DEBUG")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void LCAssert(bool condition, string value, LCDocType type)
+        {
+            if (condition)
+                LogError(value, type);
+        }
+
+        [Conditional("DEBUG")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void LCSyntaxAssert(bool condition, string? value)
+        {
+            if (condition)
+                LCSyntaxError(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void LCSyntaxError(string? value)
         {
             Console.ForegroundColor = ConsoleColor.DarkRed;
-            var frame = new StackTrace(1, true).GetFrame(0);
-            if (frame is null)
-                throw new SyntaxErrorException($"[Syntax ERROR] {value}");
-            throw new SyntaxErrorException($"[Syntax ERROR] {value} in `{frame.GetFileName()}` Line: {frame.GetFileLineNumber()} Column: {frame.GetFileColumnNumber()}");
+            // var frame = new StackTrace(1, true).GetFrame(0);
+            // if (frame is null)
+            throw new SyntaxErrorException($"[Syntax ERROR] {value}");
+            // throw new SyntaxErrorException($"[Syntax ERROR] {value} in `{frame.GetFileName()}` Line: {frame.GetFileLineNumber()} Column: {frame.GetFileColumnNumber()}");
         }
     }
 }
